@@ -10,10 +10,13 @@ static void destroy();
 static void update();
 static void render();
 
+static void onWindowClose();
+
 void Application_create(const char *name, const AppVersion version, const AppCallback initCallback,
     const AppCallback destroyCallback, const AppCallback updateCallback, const AppCallback renderCallback) {
     // Initialize application state
     appState.name = name;
+    appState.version = version;
     appState.initCallback = initCallback;
     appState.destroyCallback = destroyCallback;
     appState.updateCallback = updateCallback;
@@ -53,6 +56,7 @@ void Application_exit(const int code) {
 void Application_exitImmediate(const int code) {
     appState.exitCode = code;
     Logger_info("Application exited with code %d.", appState.exitCode);
+    Logger_closeLog();
     exit(appState.exitCode);
 }
 
@@ -79,11 +83,14 @@ void init() {
         Application_exitImmediate(-1);
     }
 
+    // Initialize the memory allocator
+    Memory_init();
+
     // Initialize the logger
     Logger_init(LOGGER_LOG_LEVEL_DEBUG, appState.name, appState.versionString);
 
     // Initialize application systems
-    if (!Window_create(appState.name, Application_exit)) {
+    if (!Window_create(appState.name, onWindowClose)) {
         Logger_fatal("Failed to create the application window.");
         Application_exitImmediate(-1);
     }
@@ -111,6 +118,7 @@ void destroy() {
 
     // Exit the application
     Logger_info("Application exited with code %d.", appState.exitCode);
+    Logger_closeLog();
     exit(appState.exitCode);
 }
 
@@ -125,4 +133,9 @@ void update() {
 void render() {
     // Call the render callback
     appState.renderCallback();
+}
+
+void onWindowClose() {
+    // Exit with code zero
+    Application_exit(0);
 }

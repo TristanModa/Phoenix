@@ -8,6 +8,8 @@
 
 static LoggerState loggerState;
 
+static void logFormatted(LogLevel logLevel, const char* format, va_list args);
+
 void Logger_init(const LogLevel logLevel, const char* appName, const char* appVersion) {
     // Set the log level
     loggerState.logLevel = logLevel;
@@ -38,34 +40,13 @@ void Logger_init(const LogLevel logLevel, const char* appName, const char* appVe
 }
 
 void Logger_closeLog() {
+    // Flush all output streams
+    for (int i = 0; i < LOGGER_OUTPUT_STREAM_COUNT; i++) {
+        fflush(loggerState.outputStreams[i]);
+    }
+
     // Close the log file
     fclose(loggerState.outputStreams[LOGGER_OUTPUT_STREAM_LOG_FILE]);
-}
-
-void Logger_logV(const LogLevel logLevel, const char* format, const va_list args) {
-    // Return if the log message is below the minimum log level
-    if (logLevel < loggerState.logLevel) {
-        return;
-    }
-
-    // Get the current timestamp
-    char timestampString[14];
-    Logger_getTimestampString(timestampString, sizeof(timestampString));
-
-    // Print the message to each output file
-    for (int i = 0; i < LOGGER_OUTPUT_STREAM_COUNT; i++) {
-        // Skip this stream if it is null
-        if (!loggerState.outputStreams[i]) {
-            continue;
-        }
-
-        // Print the message
-        fprintf(loggerState.outputStreams[i], "[%s (%s)]   ",
-            Logger_getLogLevelString(logLevel),
-            timestampString);
-        vfprintf(loggerState.outputStreams[i], format, args);
-        fprintf(loggerState.outputStreams[i], "\n");
-    }
 }
 
 void Logger_log(const LogLevel logLevel, const char* format, ...) {
@@ -74,7 +55,7 @@ void Logger_log(const LogLevel logLevel, const char* format, ...) {
     va_start(args, format);
 
     // Pass the log message to the general log function
-    Logger_logV(logLevel, format, args);
+    logFormatted(logLevel, format, args);
 
     // End processing variable arguments
     va_end(args);
@@ -86,7 +67,7 @@ void Logger_debug(const char* format, ...) {
     va_start(args, format);
 
     // Pass the log message to the general log function
-    Logger_logV(LOGGER_LOG_LEVEL_DEBUG, format, args);
+    logFormatted(LOGGER_LOG_LEVEL_DEBUG, format, args);
 
     // End processing variable arguments
     va_end(args);
@@ -98,7 +79,7 @@ void Logger_info(const char* format, ...) {
     va_start(args, format);
 
     // Pass the log message to the general log function
-    Logger_logV(LOGGER_LOG_LEVEL_INFO, format, args);
+    logFormatted(LOGGER_LOG_LEVEL_INFO, format, args);
 
     // End processing variable arguments
     va_end(args);
@@ -110,7 +91,7 @@ void Logger_warning(const char* format, ...) {
     va_start(args, format);
 
     // Pass the log message to the general log function
-    Logger_logV(LOGGER_LOG_LEVEL_WARNING, format, args);
+    logFormatted(LOGGER_LOG_LEVEL_WARNING, format, args);
 
     // End processing variable arguments
     va_end(args);
@@ -122,7 +103,7 @@ void Logger_error(const char* format, ...) {
     va_start(args, format);
 
     // Pass the log message to the general log function
-    Logger_logV(LOGGER_LOG_LEVEL_ERROR, format, args);
+    logFormatted(LOGGER_LOG_LEVEL_ERROR, format, args);
 
     // End processing variable arguments
     va_end(args);
@@ -134,7 +115,7 @@ void Logger_fatal(const char* format, ...) {
     va_start(args, format);
 
     // Pass the log message to the general log function
-    Logger_logV(LOGGER_LOG_LEVEL_FATAL, format, args);
+    logFormatted(LOGGER_LOG_LEVEL_FATAL, format, args);
 
     // End processing variable arguments
     va_end(args);
@@ -179,5 +160,31 @@ const char* Logger_getLogLevelString(const LogLevel logLevel) {
             return "Fatal";
         default:
             return "Unkwn";
+    }
+}
+
+void logFormatted(const LogLevel logLevel, const char* format, const va_list args) {
+    // Return if the log message is below the minimum log level
+    if (logLevel < loggerState.logLevel) {
+        return;
+    }
+
+    // Get the current timestamp
+    char timestampString[14];
+    Logger_getTimestampString(timestampString, sizeof(timestampString));
+
+    // Print the message to each output file
+    for (int i = 0; i < LOGGER_OUTPUT_STREAM_COUNT; i++) {
+        // Skip this stream if it is null
+        if (!loggerState.outputStreams[i]) {
+            continue;
+        }
+
+        // Print the message
+        fprintf(loggerState.outputStreams[i], "[%s (%s)]   ",
+            Logger_getLogLevelString(logLevel),
+            timestampString);
+        vfprintf(loggerState.outputStreams[i], format, args);
+        fprintf(loggerState.outputStreams[i], "\n");
     }
 }

@@ -4,7 +4,7 @@
 
 static WindowState windowState;
 
-bool Window_create(const char *title, const ExitCallback exitCallback) {
+bool Window_create(const char *title, const WindowCloseCallback windowCloseCallback) {
     Logger_info("Creating window...");
 
     // Create the window handle
@@ -21,7 +21,7 @@ bool Window_create(const char *title, const ExitCallback exitCallback) {
     SDL_SetWindowPosition(windowState.handle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
 
     // Set the exit callback
-    windowState.exitCallback = exitCallback;
+    windowState.closeCallback = windowCloseCallback;
 
     return true;
 }
@@ -35,7 +35,7 @@ void Window_pollEvents() {
     while (SDL_PollEvent(&e)) {
         switch (e.type) {
             case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
-                windowState.exitCallback(0);
+                windowState.closeCallback();
                 break;
             default:
                 break;

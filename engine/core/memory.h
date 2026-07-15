@@ -3,11 +3,26 @@
 
 #include "types.h"
 
+/**
+ * Function pointer for a malloc function
+ */
 typedef void* (*MallocFunc)(size_t);
+/**
+ * Function pointer for a calloc function
+ */
 typedef void* (*CallocFunc)(size_t, size_t);
+/**
+ * Function pointer for a realloc function
+ */
 typedef void* (*ReallocFunc)(void*, size_t);
+/**
+ * Function pointer for a free function
+ */
 typedef void  (*FreeFunc)(void*);
 
+/**
+ * The state of the memory system
+ */
 typedef struct memoryState {
     MallocFunc malloc;
     CallocFunc calloc;
@@ -15,11 +30,45 @@ typedef struct memoryState {
     FreeFunc free;
 } MemoryState;
 
+/**
+ * Initializes the memory system
+ */
+void Memory_init();
+
+/**
+ * Sets the memory allocation functions the application should use
+ * Should only be called prior to running the application via Application_run.
+ * @param malloc The function pointer of the malloc function to use
+ * @param calloc The function pointer of the calloc function to use
+ * @param realloc The function pointer of the realloc function to use
+ * @param free The function pointer of the free function to use
+ */
 void Memory_setAllocators(MallocFunc malloc, CallocFunc calloc, ReallocFunc realloc, FreeFunc free);
 
+/**
+ * Allocates uninitialized memory on the heap
+ * @param size The amount of memory to allocate in bytes
+ * @return A pointer to the allocated memory
+ */
 void* Memory_malloc(size_t size);
-void* Memory_calloc(size_t nmemb, size_t size);
+/**
+ * Allocates memory for an array of objects on the heap
+ * @param num The amount of objects to allocate memory for
+ * @param size The size of one object in bytes
+ * @return A pointer to the allocated memory
+ */
+void* Memory_calloc(size_t num, size_t size);
+/**
+ * Reallocates a given memory address on the heap
+ * @param mem A pointer to the memory to reallocate
+ * @param size The amount of memory to allocate in bytes
+ * @return A pointer to the allocated memory
+ */
 void* Memory_realloc(void* mem, size_t size);
+/**
+ * Frees a given memory address
+ * @param mem A pointer to the memory to free
+ */
 void Memory_free(void* mem);
 
 #endif //ENGINE_CORE_MEMORY_H
