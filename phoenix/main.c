@@ -7,6 +7,7 @@ int main(void) {
         Phoenix_init,
         Phoenix_destroy,
         Phoenix_update,
+        Phoenix_tick,
         Phoenix_render);
     Application_run();
 }

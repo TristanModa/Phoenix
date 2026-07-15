@@ -21,7 +21,7 @@ typedef void* (*ReallocFunc)(void*, size_t);
 typedef void  (*FreeFunc)(void*);
 
 /**
- * The state of the memory system
+ * The state of the memory subsystem
  */
 typedef struct memoryState {
     MallocFunc malloc;
@@ -31,7 +31,7 @@ typedef struct memoryState {
 } MemoryState;
 
 /**
- * Initializes the memory system
+ * Initializes the memory subsystem
  */
 void Memory_init();
 
@@ -60,15 +60,15 @@ void* Memory_malloc(size_t size);
 void* Memory_calloc(size_t num, size_t size);
 /**
  * Reallocates a given memory address on the heap
- * @param mem A pointer to the memory to reallocate
+ * @param ptr A pointer to the memory to reallocate
  * @param size The amount of memory to allocate in bytes
  * @return A pointer to the allocated memory
  */
-void* Memory_realloc(void* mem, size_t size);
+void* Memory_realloc(void* ptr, size_t size);
 /**
  * Frees a given memory address
- * @param mem A pointer to the memory to free
+ * @param ptr A pointer to the memory to free
  */
-void Memory_free(void* mem);
+void Memory_free(void* ptr);
 
 #endif //ENGINE_CORE_MEMORY_H

@@ -2,14 +2,18 @@ add_library(VulfEngine SHARED
         vulfEngine.h
         application.h
         application.c
-        core/types.h
+
+        # Core
         core/core.h
-        core/window.h
-        core/memory.h
-        core/memory.c
-        core/window.c
         core/logger.h
         core/logger.c
+        core/memory.h
+        core/memory.c
+        core/types.h
+        core/vtime.h
+        core/vtime.c
+        core/window.h
+        core/window.c
 )
 
 target_include_directories(VulfEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

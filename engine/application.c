@@ -8,19 +8,24 @@ static ApplicationState appState;
 static void init();
 static void destroy();
 static void update();
+static void tick();
 static void render();
 
 static void onWindowClose();
 
 void Application_create(const char *name, const AppVersion version, const AppCallback initCallback,
-    const AppCallback destroyCallback, const AppCallback updateCallback, const AppCallback renderCallback) {
+    const AppCallback destroyCallback, const AppCallback updateCallback, const AppCallback tickCallback,
+    const AppCallback renderCallback) {
     // Initialize application state
     appState.name = name;
     appState.version = version;
+
     appState.initCallback = initCallback;
     appState.destroyCallback = destroyCallback;
     appState.updateCallback = updateCallback;
+    appState.tickCallback = tickCallback;
     appState.renderCallback = renderCallback;
+
     appState.setToExit = false;
 
     // Construct the version string
@@ -39,7 +44,15 @@ void Application_run() {
 
     // Run the application loop
     while (!Application_shouldExit()) {
+        // Update
         update();
+
+        // Tick
+        while (Time_consumeTick()) {
+            tick();
+        }
+
+        // Redner
         render();
     }
 
@@ -77,19 +90,20 @@ bool Application_shouldExit() {
 }
 
 void init() {
+    // Initialize the logger
+    Logger_init(LOGGER_LOG_LEVEL_DEBUG, appState.name, appState.versionString);
+
+    // Initialize the memory allocator
+    Memory_init();
+
     // Initialize SDL
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         Logger_fatal("Failed to initialize SDL: %s", SDL_GetError());
         Application_exitImmediate(-1);
     }
 
-    // Initialize the memory allocator
-    Memory_init();
-
-    // Initialize the logger
-    Logger_init(LOGGER_LOG_LEVEL_DEBUG, appState.name, appState.versionString);
-
-    // Initialize application systems
+    // Initialize application subsystems
+    Time_init();
     if (!Window_create(appState.name, onWindowClose)) {
         Logger_fatal("Failed to create the application window.");
         Application_exitImmediate(-1);
@@ -110,7 +124,7 @@ void destroy() {
     // Call the destroy callback
     appState.destroyCallback();
 
-    // Destroy application systems
+    // Destroy application subsystems
     Window_destroy();
 
     // Quit SDL
@@ -126,8 +140,16 @@ void update() {
     // Poll window events
     Window_pollEvents();
 
+    // Update application subsystems
+    Time_update();
+
     // Call the update callback
     appState.updateCallback();
+}
+
+void tick() {
+    // Call the tick callback
+    appState.tickCallback();
 }
 
 void render() {

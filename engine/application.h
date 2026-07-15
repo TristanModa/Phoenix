@@ -61,6 +61,10 @@ typedef struct applicationState {
      */
     AppCallback updateCallback;
     /**
+     * The application callback that will be called on application initialization
+     */
+    AppCallback tickCallback;
+    /**
      * The application callback that will be called on application render
      */
     AppCallback renderCallback;
@@ -79,13 +83,14 @@ typedef struct applicationState {
  * Creates the application.
  * @param name The name of the application
  * @param version The version of the application
- * @param initCallback The application callback that will be called on application initialization
- * @param destroyCallback The application callback that will be called on application destruction
- * @param updateCallback The application callback that will be called on application update
- * @param renderCallback The application callback that will be called on application render
+ * @param initCallback The application callback that will be called on initialization
+ * @param destroyCallback The application callback that will be called on destruction
+ * @param updateCallback The application callback that will be called on update
+ * @param tickCallback The application callback that will be called on tick
+ * @param renderCallback The application callback that will be called on render
  */
 void Application_create(const char* name, AppVersion version, AppCallback initCallback, AppCallback destroyCallback,
-                        AppCallback updateCallback, AppCallback renderCallback);
+                        AppCallback updateCallback, AppCallback tickCallback, AppCallback renderCallback);
 
 /**
  * Initializes the application and starts the application loop.

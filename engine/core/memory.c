@@ -26,10 +26,10 @@ void* Memory_calloc(const size_t num, const size_t size) {
     return memState.calloc(num, size);
 }
 
-void* Memory_realloc(void* mem, const size_t size) {
-    return memState.realloc(mem, size);
+void* Memory_realloc(void* ptr, const size_t size) {
+    return memState.realloc(ptr, size);
 }
 
-void Memory_free(void* mem) {
-    memState.free(mem);
+void Memory_free(void* ptr) {
+    memState.free(ptr);
 }
