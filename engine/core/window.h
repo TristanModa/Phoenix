@@ -5,14 +5,14 @@
 
 #include "types.h"
 
-typedef VoidCallback ExitCallback;
+typedef void (*ExitCallback)(int);
 
 typedef struct windowState {
     SDL_Window* handle;
     ExitCallback exitCallback;
 } WindowState;
 
-void Window_create(const char* title, ExitCallback exitCallback);
+bool Window_create(const char* title, ExitCallback exitCallback);
 void Window_destroy();
 
 void Window_pollEvents();

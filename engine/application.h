@@ -14,7 +14,7 @@ typedef struct appVersion {
 } AppVersion;
 
 typedef struct applicationState {
-    const char* title;
+    const char* name;
     AppVersion version;
     char versionString[VERSION_STRING_MAX_LEN];
 
@@ -24,15 +24,17 @@ typedef struct applicationState {
     AppCallback renderCallback;
 
     bool setToExit;
+    int exitCode;
 } ApplicationState;
 
-void Application_create(const char* title, AppVersion version, AppCallback initCallback, AppCallback destroyCallback,
+void Application_create(const char* name, AppVersion version, AppCallback initCallback, AppCallback destroyCallback,
     AppCallback updateCallback, AppCallback renderCallback);
 
 void Application_run();
-void Application_exit();
+void Application_exit(int code);
+void Application_exitImmediate(int code);
 
-const char* Application_getTitle();
+const char* Application_getName();
 const AppVersion* Application_getVersion();
 const char* Application_getVersionString();
 bool Application_shouldExit();

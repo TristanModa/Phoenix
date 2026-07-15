@@ -1,6 +1,7 @@
 #ifndef ENGINE_CORE_H
 #define ENGINE_CORE_H
 
+#include "logger.h"
 #include "memory.h"
 #include "types.h"
 #include "window.h"

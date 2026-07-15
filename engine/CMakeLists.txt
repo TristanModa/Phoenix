@@ -8,6 +8,8 @@ add_library(VulfEngine SHARED
         core/memory.h
         core/memory.c
         core/window.c
+        core/logger.h
+        core/logger.c
 )
 
 target_include_directories(VulfEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

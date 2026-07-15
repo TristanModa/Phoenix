@@ -10,10 +10,10 @@ static void destroy();
 static void update();
 static void render();
 
-void Application_create(const char *title, const AppVersion version, const AppCallback initCallback,
+void Application_create(const char *name, const AppVersion version, const AppCallback initCallback,
     const AppCallback destroyCallback, const AppCallback updateCallback, const AppCallback renderCallback) {
     // Initialize application state
-    appState.title = title;
+    appState.name = name;
     appState.initCallback = initCallback;
     appState.destroyCallback = destroyCallback;
     appState.updateCallback = updateCallback;
@@ -44,12 +44,20 @@ void Application_run() {
     destroy();
 }
 
-void Application_exit() {
+void Application_exit(const int code) {
     appState.setToExit = true;
+    appState.exitCode = code;
+    Logger_info("Application set to exit with code %d.", appState.exitCode);
 }
 
-const char* Application_getTitle() {
-    return appState.title;
+void Application_exitImmediate(const int code) {
+    appState.exitCode = code;
+    Logger_info("Application exited with code %d.", appState.exitCode);
+    exit(appState.exitCode);
+}
+
+const char* Application_getName() {
+    return appState.name;
 }
 
 const AppVersion* Application_getVersion() {
@@ -67,20 +75,31 @@ bool Application_shouldExit() {
 void init() {
     // Initialize SDL
     if (!SDL_Init(SDL_INIT_VIDEO)) {
-        exit(-1);
+        Logger_fatal("Failed to initialize SDL: %s", SDL_GetError());
+        Application_exitImmediate(-1);
     }
 
+    // Initialize the logger
+    Logger_init(LOGGER_LOG_LEVEL_DEBUG, appState.name, appState.versionString);
+
     // Initialize application systems
-    Window_create(appState.title, Application_exit);
+    if (!Window_create(appState.name, Application_exit)) {
+        Logger_fatal("Failed to create the application window.");
+        Application_exitImmediate(-1);
+    }
 
     // Show the application window
     Window_show();
 
     // Call the init callback
     appState.initCallback();
+
+    Logger_info("Application initialized.");
 }
 
 void destroy() {
+    Logger_info("Shutting down application...");
+
     // Call the destroy callback
     appState.destroyCallback();
 
@@ -89,6 +108,10 @@ void destroy() {
 
     // Quit SDL
     SDL_Quit();
+
+    // Exit the application
+    Logger_info("Application exited with code %d.", appState.exitCode);
+    exit(appState.exitCode);
 }
 
 void update() {

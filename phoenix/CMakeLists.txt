@@ -1,5 +1,7 @@
 add_executable(${PROJECT_NAME}
         main.c
+        phoenix.h
+        phoenix.c
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/phoenix/)
