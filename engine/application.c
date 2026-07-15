@@ -1,7 +1,7 @@
 #include "application.h"
 
 #include <stdio.h>
-
+#include <stdlib.h>
 
 static ApplicationState appState;
 
@@ -25,6 +25,9 @@ void Application_create(const char *title, const AppVersion version, const AppCa
         appState.version.major,
         appState.version.minor,
         appState.version.patch);
+
+    // Set the application's default allocators
+    Memory_setAllocators(malloc, calloc, realloc, free);
 }
 
 void Application_run() {
@@ -62,6 +65,17 @@ bool Application_shouldExit() {
 }
 
 void init() {
+    // Initialize SDL
+    if (!SDL_Init(SDL_INIT_VIDEO)) {
+        exit(-1);
+    }
+
+    // Initialize application systems
+    Window_create(appState.title, Application_exit);
+
+    // Show the application window
+    Window_show();
+
     // Call the init callback
     appState.initCallback();
 }
@@ -69,9 +83,18 @@ void init() {
 void destroy() {
     // Call the destroy callback
     appState.destroyCallback();
+
+    // Destroy application systems
+    Window_destroy();
+
+    // Quit SDL
+    SDL_Quit();
 }
 
 void update() {
+    // Poll window events
+    Window_pollEvents();
+
     // Call the update callback
     appState.updateCallback();
 }
