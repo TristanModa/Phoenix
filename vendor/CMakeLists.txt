@@ -12,5 +12,5 @@ FetchContent_MakeAvailable(sdl3)
 # Create the vendor interface
 add_library(vendor INTERFACE)
 target_link_libraries(vendor INTERFACE
-        m
-        SDL3::SDL3)
+        SDL3::SDL3
+)
