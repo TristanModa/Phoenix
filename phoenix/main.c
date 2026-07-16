@@ -30,7 +30,8 @@ void setAppProperties() {
 
     // Set time properties
     const TimeProperties timeProperties = {
-        .targetTicksPerSecond = TARGET_TICKS_PER_SECOND
+        .targetTicksPerSecond = TARGET_TICKS_PER_SECOND,
+        .maxTickProcessingTimePerFrame = MAX_TICK_PROCESSING_TIME_PER_FRAME
     };
     Time_setProperties(&timeProperties);
 }

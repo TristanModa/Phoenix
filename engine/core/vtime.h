@@ -8,6 +8,7 @@
  */
 typedef struct timeProperties {
     float targetTicksPerSecond;
+    float maxTickProcessingTimePerFrame;
 } TimeProperties;
 
 /**
@@ -31,20 +32,33 @@ typedef struct timeState {
      * The time elapsed
      */
     float deltaTime;
+    /**
+     * The amount of frames processed per second
+     */
     float framesPerSecond;
+
+
+    /**
+     * The rate at which ticks should be processed in seconds
+     */
+    float tickRate;
+    /**
+     * The maximum amount of time per frame ticks should be allowed to be processed for
+     */
+    float maxTickProcessingTimePerFrame;
 
     /**
      * The amount of ticks that have been processed since the time system was initialized
      */
     u32 currentTick;
     /**
-     * The rate at which ticks should be processed in seconds
-     */
-    float tickRate;
-    /**
      * The amount of time that has elapsed since the previous tick in seconds
      */
     float tickTimer;
+    /**
+     * The amount of ticks processed last frame
+     */
+    u32 ticksProcessedThisFrame;
 } TimeState;
 
 /**
@@ -84,6 +98,10 @@ float Time_getDeltaTime();
  * @return The framerate in frames per second
  */
 float Time_getFPS();
-
+/**
+ * Gets the elapsed ticks since the application was initialized
+ * @return The elapsed ticks
+ */
+u32 Time_getCurrentTick();
 
 #endif //ENGINE_CORE_VTIME_H

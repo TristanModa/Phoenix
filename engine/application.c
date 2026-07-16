@@ -107,7 +107,8 @@ void setDefaultSubsystemProperties() {
 
     // Set the default time properties
     const TimeProperties timeProperties = {
-        .targetTicksPerSecond = 60
+        .targetTicksPerSecond = 50,
+        .maxTickProcessingTimePerFrame = 0.25f
     };
     Time_setProperties(&timeProperties);
 

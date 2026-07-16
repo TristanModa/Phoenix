@@ -7,7 +7,8 @@
 #define LOG_FILE_PATH "phoenix.log"
 
 // Time
-constexpr float TARGET_TICKS_PER_SECOND = 240;
+constexpr float TARGET_TICKS_PER_SECOND = 10;
+constexpr float MAX_TICK_PROCESSING_TIME_PER_FRAME = 0.25f;
 
 // Window
 constexpr SDL_WindowFlags WINDOW_FLAGS = SDL_WINDOW_FULLSCREEN;

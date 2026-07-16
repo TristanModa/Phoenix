@@ -18,7 +18,6 @@ void Renderer_create() {
 	rendererState.lines = ArrayList_create(sizeof(Line), 0);
 
 	// Set renderer properties
-	SDL_SetRenderVSync(rendererState.handle, SDL_RENDERER_VSYNC_ADAPTIVE);
 	SDL_SetRenderDrawBlendMode(rendererState.handle, SDL_BLENDMODE_BLEND);
 }
 

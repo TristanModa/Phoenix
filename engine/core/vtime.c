@@ -1,7 +1,6 @@
 #include "vtime.h"
 
 #include <math.h>
-#include <time.h>
 #include <SDL3/SDL.h>
 
 #include "logger.h"
@@ -11,6 +10,7 @@ static TimeState timeState;
 void Time_setProperties(const TimeProperties* timeProperties) {
     // Calculate the tick rate
     timeState.tickRate = 1 / timeProperties->targetTicksPerSecond;
+    timeState.maxTickProcessingTimePerFrame = timeProperties->maxTickProcessingTimePerFrame;
 }
 
 void Time_init() {
@@ -32,6 +32,14 @@ void Time_init() {
         exit(-1);
     }
 
+    // Throw an error on invalid max tick processing time
+    if (timeState.maxTickProcessingTimePerFrame <= 0) {
+        Logger_fatal(
+            "Failed to initialize time: Max tick processing time per frame of %.2g is invalid.",
+            timeState.maxTickProcessingTimePerFrame);
+    }
+
+
     // Pop the log indent
     Logger_popIndent();
 }
@@ -50,6 +58,35 @@ void Time_update() {
     timeState.tickTimer += timeState.deltaTime;
 }
 
+bool Time_consumeTick() {
+    // Return false if there is not enough time to complete a tick
+    if (timeState.tickTimer < timeState.tickRate) {
+        return false;
+    }
+
+    // Calculate the amount of time elapsed since the start of the frame
+    const float frameStartTime = timeState.currentTime;
+    const float currentTime = (float)SDL_GetTicksNS() * 1e-9f;
+    const float elapsedTime = currentTime - frameStartTime;
+
+    // Return false if the amount of time spent this frame on tick processing is above the maximum
+    if (elapsedTime > timeState.maxTickProcessingTimePerFrame) {
+        const int remainingTicks = (int)(timeState.tickTimer / timeState.tickRate);
+        Logger_warning(
+            "Maximum tick processing time (%.2g) for the frame exceeded. "
+            "The remaining %d ticks will be pushed to future frames.",
+            timeState.maxTickProcessingTimePerFrame,
+            remainingTicks);
+        return false;
+    }
+
+    // Consume one tick's worth of time
+    timeState.tickTimer -= timeState.tickRate;
+    timeState.currentTick++;
+
+    return true;
+}
+
 float Time_getCurrentTime() {
     return timeState.currentTime;
 }
@@ -62,13 +99,6 @@ float Time_getFPS() {
     return timeState.framesPerSecond;
 }
 
-bool Time_consumeTick() {
-    // Return false if there is not enough time to complete a tick
-    if (timeState.tickTimer < timeState.tickRate) {
-        return false;
-    }
-
-    // Consume one tick's worth of time
-    timeState.tickTimer -= timeState.tickRate;
-    return true;
+u32 Time_getCurrentTick() {
+    return timeState.currentTick;
 }
