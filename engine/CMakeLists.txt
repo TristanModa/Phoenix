@@ -3,6 +3,11 @@ add_library(VulfEngine SHARED
         application.h
         application.c
 
+		# Collections
+		collections/collections.h
+		collections/arrayList.h
+		collections/arrayList.c
+
         # Core
         core/core.h
         core/logger.h
@@ -14,9 +19,14 @@ add_library(VulfEngine SHARED
         core/vtime.c
         core/window.h
         core/window.c
+
+		# GFX
+		gfx/gfx.h
+		gfx/renderer.h
+		gfx/renderer.c
 )
 
-target_include_directories(VulfEngine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(VulfEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(VulfEngine PUBLIC
         vendor
 )

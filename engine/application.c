@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "gfx/gfx.h"
+
 static ApplicationState appState;
 
 static void init();
@@ -108,6 +110,10 @@ void init() {
         Logger_fatal("Failed to create the application window.");
         Application_exitImmediate(-1);
     }
+    if (!Renderer_create()) {
+        Logger_fatal("Failed to create the application renderer.");
+        Application_exitImmediate(-1);
+    }
 
     // Show the application window
     Window_show();
@@ -125,6 +131,7 @@ void destroy() {
     appState.destroyCallback();
 
     // Destroy application subsystems
+    Renderer_destroy();
     Window_destroy();
 
     // Quit SDL

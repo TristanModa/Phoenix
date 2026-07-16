@@ -142,7 +142,7 @@ void Logger_getTimestampString(char* buffer, const size_t bufferSize) {
 
     // Write the timestamp to the buffer
     snprintf(buffer, bufferSize,
-        "%02llu:%02llu:%02llu:%03llu",
+        "%02" PRIu64 ":%02" PRIu64 ":%02" PRIu64 ":%03" PRIu64,
         hours, minutes, seconds, milliseconds);
 }
 
@@ -163,7 +163,7 @@ const char* Logger_getLogLevelString(const LogLevel logLevel) {
     }
 }
 
-void logFormatted(const LogLevel logLevel, const char* format, const va_list args) {
+void logFormatted(const LogLevel logLevel, const char* format, va_list args) {
     // Return if the log message is below the minimum log level
     if (logLevel < loggerState.logLevel) {
         return;

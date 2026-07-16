@@ -11,7 +11,7 @@
 typedef VoidFunc WindowCloseCallback;
 
 /**
- * The state of the window
+ * The state of the window subsystem
  */
 typedef struct windowState {
     SDL_Window* handle;

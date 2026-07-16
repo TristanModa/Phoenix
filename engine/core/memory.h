@@ -1,7 +1,7 @@
 #ifndef ENGINE_CORE_MEMORY_H
 #define ENGINE_CORE_MEMORY_H
 
-#include "types.h"
+#include <stddef.h>
 
 /**
  * Function pointer for a malloc function
