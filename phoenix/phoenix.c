@@ -1,6 +1,8 @@
 #include "phoenix.h"
 
-#include "gfx/renderer.h"
+#include <vulfEngine.h>
+
+#include "constants.h"
 
 int totalTicks = 0;
 int ticksThisFrame;
@@ -12,6 +14,8 @@ void Phoenix_destroy() {
 }
 
 void Phoenix_update() {
+    const ButtonState state = *Input_getButtonState(BUTTON_COUNT);
+    Logger_info("%i, %i, %i", state.pressed, state.held, state.released);
 }
 
 void Phoenix_tick() {

@@ -34,4 +34,11 @@ void setAppProperties() {
         .maxTickProcessingTimePerFrame = MAX_TICK_PROCESSING_TIME_PER_FRAME
     };
     Time_setProperties(&timeProperties);
+
+    // Set input properties
+    const InputProperties inputProperties = {
+        .buttonCount = BUTTON_COUNT,
+        .defaultBindings = DEFAULT_BINDINGS
+    };
+    Input_setProperties(&inputProperties);
 }

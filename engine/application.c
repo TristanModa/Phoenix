@@ -186,6 +186,7 @@ void update() {
 
     // Update application subsystems
     Time_update();
+    Input_update();
 
     // Call the update callback
     appState.updateCallback();

@@ -24,6 +24,9 @@ typedef struct inputProperties {
     const Binding* defaultBindings;
 } InputProperties;
 
+/**
+ *
+ */
 typedef struct buttonState {
     bool pressed;
     bool held;
@@ -58,5 +61,9 @@ void Input_create();
  * Destroys the input subsystem and frees associated resources
  */
 void Input_destroy();
+
+void Input_update();
+
+const ButtonState* Input_getButtonState(u8 buttonID);
 
 #endif //ENGINE_CORE_INPUT_H
