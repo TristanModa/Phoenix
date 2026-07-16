@@ -2,24 +2,23 @@
 
 #include "gfx/renderer.h"
 
+int ticksThisFrame;
+
 void Phoenix_init() {
-    Logger_debug("Debug");
-    Logger_info("Info");
-    Logger_warning("Warning");
-    Logger_error("Error");
-    Logger_fatal("Fatal");
-    Logger_log(-1, "Unknown");
 }
 
 void Phoenix_destroy() {
 }
 
 void Phoenix_update() {
+    ticksThisFrame = 0;
 }
 
 void Phoenix_tick() {
+    ticksThisFrame++;
 }
 
 void Phoenix_render() {
+    Logger_debug("Ticks this frame: %d", ticksThisFrame);
     Renderer_drawLine(0, 0, 1279, 719, COLOR_RED);
 }

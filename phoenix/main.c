@@ -22,6 +22,12 @@ int main(void) {
 }
 
 void setAppProperties() {
+    // Set logger properties
+    const LoggerProperties loggerProperties = {
+        .logFilePath = LOG_FILE_PATH
+    };
+    Logger_setProperties(&loggerProperties);
+
     // Set time properties
     const TimeProperties timeProperties = {
         .targetTicksPerSecond = TARGET_TICKS_PER_SECOND

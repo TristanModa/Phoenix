@@ -10,13 +10,21 @@ static LoggerState loggerState;
 
 static void logFormatted(LogLevel logLevel, const char* format, va_list args);
 
+void Logger_setProperties(const LoggerProperties *loggerProperties) {
+    loggerState.logFilePath = loggerProperties->logFilePath;
+}
+
 void Logger_init(const LogLevel logLevel, const char* appName, const char* appVersion) {
     // Set the log level
     loggerState.logLevel = logLevel;
 
     // Set the logger outputs
     loggerState.outputStreams[LOGGER_OUTPUT_STREAM_STDOUT] = stdout;
-    loggerState.outputStreams[LOGGER_OUTPUT_STREAM_LOG_FILE] = fopen("app.log", "w");
+    loggerState.outputStreams[LOGGER_OUTPUT_STREAM_LOG_FILE] = fopen(loggerState.logFilePath, "w");
+
+    // Get file open error if it failed
+    const bool fileOpenFailed = !loggerState.outputStreams[LOGGER_OUTPUT_STREAM_LOG_FILE];
+    const int fileOpenErrorNum = errno;
 
     // Print the log header to each output stream
     for (int i = 0; i < LOGGER_OUTPUT_STREAM_COUNT; i++) {
@@ -34,9 +42,14 @@ void Logger_init(const LogLevel logLevel, const char* appName, const char* appVe
 
     // Output log initialized
     Logger_info("Logger initialized.");
-    if (!loggerState.outputStreams[LOGGER_OUTPUT_STREAM_LOG_FILE]) {
-        Logger_error("Failed to open \"app.log\": Logging to file disabled.");
+    Logger_pushIndent();
+    if (fileOpenFailed) {
+        Logger_error(
+            "Failed to open log file \"%s\" for writing: %s.",
+            loggerState.logFilePath, strerror(fileOpenErrorNum));
+        Logger_info("Logging to file is disabled.");
     }
+    Logger_popIndent();
 }
 
 void Logger_closeLog() {

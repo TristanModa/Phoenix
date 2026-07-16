@@ -90,6 +90,12 @@ bool Application_shouldExit() {
 }
 
 void setDefaultSubsystemProperties() {
+    // Set the default logger properties
+    const LoggerProperties loggerProperties = {
+        .logFilePath = "app.log"
+    };
+    Logger_setProperties(&loggerProperties);
+
     // Set the default memory properties
     const MemoryProperties memoryProperties = {
         .mallocFunc = malloc,

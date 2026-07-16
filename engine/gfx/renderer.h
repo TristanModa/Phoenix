@@ -17,6 +17,9 @@ typedef struct line {
  * The state of the renderer subsystem
  */
 typedef struct rendererState {
+	/**
+	 * The SDL handle of the renderer
+	 */
 	SDL_Renderer* handle;
 
 	ArrayList* lines;

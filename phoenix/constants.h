@@ -3,12 +3,15 @@
 
 #include "core/types.h"
 
+// Log
+#define LOG_FILE_PATH "phoenix.log"
+
 // Time
 constexpr float TARGET_TICKS_PER_SECOND = 240;
 
 // Window
 constexpr SDL_WindowFlags WINDOW_FLAGS = SDL_WINDOW_FULLSCREEN;
-constexpr int DEFAULT_WINDOW_WIDTH = -1280;
+constexpr int DEFAULT_WINDOW_WIDTH = 1280;
 constexpr int DEFAULT_WINDOW_HEIGHT = 720;
 
 // Input

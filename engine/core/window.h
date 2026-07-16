@@ -10,9 +10,22 @@
  */
 typedef VoidFunc WindowCloseCallback;
 
+/**
+ * Defines a configuration for the window subsystem
+ */
 typedef struct windowProperties {
+    /**
+     * The flags to use during window creation
+     */
     SDL_WindowFlags flags;
-    int width, height;
+    /**
+     * The width to use during window creation
+     */
+    int width;
+    /**
+     * The height to use during window creation
+     */
+    int height;
 } WindowProperties;
 
 /**
@@ -29,6 +42,11 @@ typedef struct windowState {
     WindowCloseCallback closeCallback;
 } WindowState;
 
+/**
+ * Sets the properties of the window subsystem.
+ * Should be called after Application_create but prior to Application_run.
+ * @param windowProperties The properties struct to use
+ */
 void Window_setProperties(const WindowProperties* windowProperties);
 
 /**

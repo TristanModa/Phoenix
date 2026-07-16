@@ -14,12 +14,22 @@
 #define ANSI_UNKNOWN "\x1B[38;5;7m"
 
 /**
+ * Defines a configuration for the logger subsystem
+ */
+typedef struct loggerProperties {
+    /**
+     * The file path to write the log file to
+     */
+    const char* logFilePath;
+} LoggerProperties;
+
+/**
  * Output stream types supported by the logger
  */
 typedef enum logOutputStream {
-    LOGGER_OUTPUT_STREAM_STDOUT, /**< */
-    LOGGER_OUTPUT_STREAM_LOG_FILE,
-    LOGGER_OUTPUT_STREAM_COUNT
+    LOGGER_OUTPUT_STREAM_STDOUT, /**< Log stream for C standard output */
+    LOGGER_OUTPUT_STREAM_LOG_FILE, /**< Log stream for logging to file */
+    LOGGER_OUTPUT_STREAM_COUNT /**< The amount of supported log streams */
 } LogOutputStream;
 
 /**
@@ -34,13 +44,17 @@ typedef enum logLevel {
 } LogLevel;
 
 /**
- * The state of the logger
+ * The state of the logger subsystem
  */
 typedef struct loggerState {
     /**
      * A list of all output streams the logger should write to
      */
     FILE* outputStreams[LOGGER_OUTPUT_STREAM_COUNT];
+    /**
+     * The file path to write the log file to
+     */
+    const char* logFilePath;
     /**
      * The minimum log level a log message must have to be written to log
      */
@@ -50,6 +64,13 @@ typedef struct loggerState {
      */
     u32 indentationLevel;
 } LoggerState;
+
+/**
+ * Sets the properties of the logger subsystem.
+ * Should only be called prior to running the application via Application_run.
+ * @param loggerProperties The properties struct to use
+ */
+void Logger_setProperties(const LoggerProperties* loggerProperties);
 
 /**
  * Initializes the logger

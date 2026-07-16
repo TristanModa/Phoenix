@@ -31,18 +31,30 @@ typedef struct memoryProperties {
 } MemoryProperties;
 
 /**
- * Defines the state of the memory subsystem
+ * The state of the memory subsystem
  */
 typedef struct memoryState {
+    /**
+     * Function pointer for the malloc function to use
+     */
     MallocFunc malloc;
+    /**
+     * Function pointer for the calloc function to use
+     */
     CallocFunc calloc;
+    /**
+     * Function pointer for the realloc function to use
+     */
     ReallocFunc realloc;
+    /**
+     * Function pointer for the free function to use
+     */
     FreeFunc free;
 } MemoryState;
 
 /**
  * Sets the properties of the memory subsystem.
- * Should only be called prior to running the application via Application_run.
+ * Should be called after Application_create but prior to Application_run.
  * @param memoryProperties The properties struct to use
  */
 void Memory_setProperties(const MemoryProperties* memoryProperties);
