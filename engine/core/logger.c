@@ -35,7 +35,7 @@ void Logger_init(const LogLevel logLevel, const char* appName, const char* appVe
     // Output log initialized
     Logger_info("Logger initialized.");
     if (!loggerState.outputStreams[LOGGER_OUTPUT_STREAM_LOG_FILE]) {
-        Logger_error("Unable to open \"app.log\": Logging to file disabled.");
+        Logger_error("Failed to open \"app.log\": Logging to file disabled.");
     }
 }
 
@@ -121,6 +121,17 @@ void Logger_fatal(const char* format, ...) {
     va_end(args);
 }
 
+void Logger_pushIndent() {
+    loggerState.indentationLevel++;
+}
+
+void Logger_popIndent() {
+    if (loggerState.indentationLevel == 0) {
+        return;
+    }
+    loggerState.indentationLevel--;
+}
+
 LogLevel Logger_getLogLevel() {
     return loggerState.logLevel;
 }
@@ -180,11 +191,49 @@ void logFormatted(const LogLevel logLevel, const char* format, va_list args) {
             continue;
         }
 
-        // Print the message
-        fprintf(loggerState.outputStreams[i], "[%s (%s)]   ",
+        // Add relevant ANSI color code if the stream is stdout
+        if (i == LOGGER_OUTPUT_STREAM_STDOUT) {
+            const char* escapeCode;
+            switch (logLevel) {
+                case LOGGER_LOG_LEVEL_DEBUG:
+                    escapeCode = ANSI_DEBUG;
+                    break;
+                case LOGGER_LOG_LEVEL_INFO:
+                    escapeCode = ANSI_INFO;
+                    break;
+                case LOGGER_LOG_LEVEL_WARNING:
+                    escapeCode = ANSI_WARNING;
+                    break;
+                case LOGGER_LOG_LEVEL_ERROR:
+                    escapeCode = ANSI_ERROR;
+                    break;
+                case LOGGER_LOG_LEVEL_FATAL:
+                    escapeCode = ANSI_FATAL;
+                    break;
+                default:
+                    escapeCode = ANSI_UNKNOWN;
+                    break;
+            }
+            fprintf(loggerState.outputStreams[i], "%s", escapeCode);
+        }
+
+        // Print the message label
+        fprintf(loggerState.outputStreams[i], "[%s (%s)]",
             Logger_getLogLevelString(logLevel),
             timestampString);
+
+        // Print indentation
+        for (int j = 0; j < loggerState.indentationLevel + 1; j++) {
+            fprintf(loggerState.outputStreams[i], "    ");
+        }
+
+        // Print the message
         vfprintf(loggerState.outputStreams[i], format, args);
         fprintf(loggerState.outputStreams[i], "\n");
+
+        // Print the ANSI reset code if the stream is stdout
+        if (i == LOGGER_OUTPUT_STREAM_STDOUT) {
+            fprintf(loggerState.outputStreams[i], ANSI_RESET);
+        }
     }
 }

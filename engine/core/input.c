@@ -11,6 +11,9 @@ void Input_setProperties(const InputProperties* inputProperties) {
 }
 
 void Input_create() {
+    Logger_info("Creating input subsystem...");
+    Logger_pushIndent();
+
     // Allocate memory for the button array
     inputState.buttons = Memory_malloc(inputState.buttonCount * sizeof(VirtualButton));
     if (!inputState.buttons) {
@@ -28,13 +31,16 @@ void Input_create() {
 
     // Log a warning if no buttons were defined
     if (inputState.buttonCount == 0) {
-        Logger_warning(
-            "No buttons have been defined in the input subsystem. "
-            "No input will be read by the application.");
+        Logger_warning("No buttons defined. No input will be read by the application.");
     }
+
+    // Pop the log indent
+    Logger_popIndent();
 }
 
 void Input_destroy() {
+    Logger_info("Destroying input subsystem...");
+
     // Release associated resources
     Memory_free(inputState.buttons);
 }

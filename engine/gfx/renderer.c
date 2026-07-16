@@ -23,6 +23,8 @@ void Renderer_create() {
 }
 
 void Renderer_destroy() {
+	Logger_info("Destroying renderer subsystem...");
+
 	// Release SDL resources
 	SDL_DestroyRenderer(rendererState.handle);
 }

@@ -12,6 +12,7 @@ void Window_setProperties(const WindowProperties *windowProperties) {
 
 void Window_create(const char *title, const WindowCloseCallback windowCloseCallback) {
     Logger_info("Creating window subsystem...");
+    Logger_pushIndent();
 
     // Create the window handle
     windowState.handle = SDL_CreateWindow(
@@ -29,9 +30,13 @@ void Window_create(const char *title, const WindowCloseCallback windowCloseCallb
 
     // Set the close callback
     windowState.closeCallback = windowCloseCallback;
+
+    // Pop the log indent
+    Logger_popIndent();
 }
 
 void Window_destroy() {
+    Logger_info("Destroying window subsystem...");
     SDL_DestroyWindow(windowState.handle);
 }
 
@@ -40,7 +45,9 @@ void Window_pollEvents() {
     while (SDL_PollEvent(&e)) {
         switch (e.type) {
             case SDL_EVENT_QUIT:
-                windowState.closeCallback();
+                if (windowState.closeCallback) {
+                    windowState.closeCallback();
+                }
                 break;
             default:
                 break;

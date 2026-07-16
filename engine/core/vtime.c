@@ -14,6 +14,9 @@ void Time_setProperties(const TimeProperties* timeProperties) {
 }
 
 void Time_init() {
+    Logger_info("Initializing time subsystem...");
+    Logger_pushIndent();
+
     // Initialize time state
     timeState.nowNS = 0;
     timeState.prevNS = 0;
@@ -28,6 +31,9 @@ void Time_init() {
         Logger_fatal("Failed to initialize time: Tick rate of %.2g is invalid.", timeState.tickRate);
         exit(-1);
     }
+
+    // Pop the log indent
+    Logger_popIndent();
 }
 
 void Time_update() {

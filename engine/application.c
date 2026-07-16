@@ -129,10 +129,13 @@ void init() {
     Memory_init();
 
     // Initialize SDL
+    Logger_info("Initializing SDL...");
+    Logger_pushIndent();
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         Logger_fatal("Failed to initialize SDL: %s", SDL_GetError());
         exit(-1);
     }
+    Logger_popIndent();
 
     // Initialize application subsystems
     Time_init();
@@ -161,6 +164,7 @@ void destroy() {
     Window_destroy();
 
     // Quit SDL
+    Logger_info("Quitting SDL...");
     SDL_Quit();
 
     // Exit the application

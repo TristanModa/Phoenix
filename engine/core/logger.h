@@ -3,6 +3,16 @@
 
 #include <stdio.h>
 
+#include "types.h"
+
+#define ANSI_RESET "\x1B[39m"
+#define ANSI_DEBUG "\x1B[38;5;14m"
+#define ANSI_INFO "\x1B[38;5;15m"
+#define ANSI_WARNING "\x1B[38;5;11m"
+#define ANSI_ERROR "\x1B[38;5;1m"
+#define ANSI_FATAL "\x1B[38;5;88m"
+#define ANSI_UNKNOWN "\x1B[38;5;7m"
+
 /**
  * Output stream types supported by the logger
  */
@@ -28,13 +38,17 @@ typedef enum logLevel {
  */
 typedef struct loggerState {
     /**
+     * A list of all output streams the logger should write to
+     */
+    FILE* outputStreams[LOGGER_OUTPUT_STREAM_COUNT];
+    /**
      * The minimum log level a log message must have to be written to log
      */
     LogLevel logLevel;
     /**
-     * A list of all output streams the logger should write to
+     * The amount of indents to include after the message label
      */
-    FILE* outputStreams[LOGGER_OUTPUT_STREAM_COUNT];
+    u32 indentationLevel;
 } LoggerState;
 
 /**
@@ -86,6 +100,15 @@ void Logger_error(const char* format, ...) __attribute__((format(printf, 1, 2)))
  * @param ... The arguments of the format string
  */
 void Logger_fatal(const char* format, ...) __attribute__((format(printf, 1, 2)));
+
+/**
+ * Increases the amount of indentation after the log message label by one
+ */
+void Logger_pushIndent();
+/**
+ * Decreases the amount of indentation after the log message label by one
+ */
+void Logger_popIndent();
 
 /**
  * Gets the minimum log level of the logger

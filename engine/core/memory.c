@@ -14,6 +14,9 @@ void Memory_setProperties(const MemoryProperties *memoryProperties) {
 }
 
 void Memory_init() {
+    Logger_info("Initializing memory subsystem...");
+    Logger_pushIndent();
+
     // Set SDL memory functions
     SDL_SetMemoryFunctions(Memory_malloc, Memory_calloc, Memory_realloc, Memory_free);
 
@@ -22,6 +25,9 @@ void Memory_init() {
         Logger_fatal("Failed to initialize memory subsystem: One or more allocator functions are null.");
         exit(-1);
     }
+
+    // Pop the log indent
+    Logger_popIndent();
 }
 
 void* Memory_malloc(const size_t size) {
