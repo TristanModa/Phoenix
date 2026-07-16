@@ -73,14 +73,10 @@ typedef struct applicationState {
      * Whether the application should exit at the end of the current frame
      */
     bool setToExit;
-    /**
-     * The exit code the application should exit with
-     */
-    int exitCode;
 } ApplicationState;
 
 /**
- * Creates the application.
+ * Creates the application
  * @param name The name of the application
  * @param version The version of the application
  * @param initCallback The application callback that will be called on initialization
@@ -98,16 +94,14 @@ void Application_create(const char* name, AppVersion version, AppCallback initCa
  */
 void Application_run();
 /**
- * Sets the application to exit at the end of the next frame.
- * @param code The exit code to terminate the application with
+ * Sets the application to exit at the end of the next frame
  */
-void Application_exit(int code);
+void Application_exit();
 /**
  * Exits the application immediately.
  * Exiting immediately will avoid running any application destructors and can cause loss of data.
- * @param code The exit code to terminate the application with
  */
-void Application_exitImmediate(int code);
+void Application_exitImmediate();
 
 /**
  * Gets the name of the application

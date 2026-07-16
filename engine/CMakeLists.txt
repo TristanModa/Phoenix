@@ -24,6 +24,9 @@ add_library(VulfEngine SHARED
 		gfx/gfx.h
 		gfx/renderer.h
 		gfx/renderer.c
+		gfx/colors.h
+        core/input.h
+		core/input.c
 )
 
 target_include_directories(VulfEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")

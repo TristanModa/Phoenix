@@ -10,13 +10,26 @@
  */
 typedef VoidFunc WindowCloseCallback;
 
+typedef struct windowProperties {
+    SDL_WindowFlags flags;
+    int width, height;
+} WindowProperties;
+
 /**
- * The state of the window subsystem
+ * Defines the state of the window subsystem
  */
 typedef struct windowState {
     SDL_Window* handle;
+
+    struct {
+        SDL_WindowFlags flags;
+        int width, height;
+    } creationParameters;
+
     WindowCloseCallback closeCallback;
 } WindowState;
+
+void Window_setProperties(const WindowProperties* windowProperties);
 
 /**
  * Creates the window
@@ -24,7 +37,7 @@ typedef struct windowState {
  * @param windowCloseCallback A function pointer that should be called when the window is closed
  * @return True on success
  */
-bool Window_create(const char* title, WindowCloseCallback windowCloseCallback);
+void Window_create(const char* title, WindowCloseCallback windowCloseCallback);
 /**
  * Destroys the window and frees associated resources
  */

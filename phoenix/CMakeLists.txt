@@ -1,5 +1,6 @@
 add_executable(${PROJECT_NAME}
         main.c
+        constants.h
         phoenix.h
         phoenix.c
 )

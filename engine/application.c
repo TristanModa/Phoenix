@@ -7,13 +7,13 @@
 
 static ApplicationState appState;
 
+static void setDefaultSubsystemProperties();
+
 static void init();
 static void destroy();
 static void update();
 static void tick();
 static void render();
-
-static void onWindowClose();
 
 void Application_create(const char *name, const AppVersion version, const AppCallback initCallback,
     const AppCallback destroyCallback, const AppCallback updateCallback, const AppCallback tickCallback,
@@ -36,8 +36,8 @@ void Application_create(const char *name, const AppVersion version, const AppCal
         appState.version.minor,
         appState.version.patch);
 
-    // Set the application's default allocators
-    Memory_setAllocators(malloc, calloc, realloc, free);
+    // Set the default properties of all app subsystems
+    setDefaultSubsystemProperties();
 }
 
 void Application_run() {
@@ -54,7 +54,7 @@ void Application_run() {
             tick();
         }
 
-        // Redner
+        // Render
         render();
     }
 
@@ -62,17 +62,15 @@ void Application_run() {
     destroy();
 }
 
-void Application_exit(const int code) {
+void Application_exit() {
     appState.setToExit = true;
-    appState.exitCode = code;
-    Logger_info("Application set to exit with code %d.", appState.exitCode);
+    Logger_info("Application set to exit.");
 }
 
-void Application_exitImmediate(const int code) {
-    appState.exitCode = code;
-    Logger_info("Application exited with code %d.", appState.exitCode);
+void Application_exitImmediate() {
+    Logger_info("Application set to exit immediately.");
     Logger_closeLog();
-    exit(appState.exitCode);
+    exit(0);
 }
 
 const char* Application_getName() {
@@ -91,6 +89,38 @@ bool Application_shouldExit() {
     return appState.setToExit;
 }
 
+void setDefaultSubsystemProperties() {
+    // Set the default memory properties
+    const MemoryProperties memoryProperties = {
+        .mallocFunc = malloc,
+        .callocFunc = calloc,
+        .reallocFunc = realloc,
+        .freeFunc = free
+    };
+    Memory_setProperties(&memoryProperties);
+
+    // Set the default time properties
+    const TimeProperties timeProperties = {
+        .targetTicksPerSecond = 60
+    };
+    Time_setProperties(&timeProperties);
+
+    // Set the default window properties
+    const WindowProperties windowProperties = {
+        .flags = 0,
+        .width = 1280,
+        .height = 720
+    };
+    Window_setProperties(&windowProperties);
+
+    // Set the default input properties
+    const InputProperties inputProperties = {
+        .buttonCount = 0,
+        .defaultBindings = nullptr
+    };
+    Input_setProperties(&inputProperties);
+}
+
 void init() {
     // Initialize the logger
     Logger_init(LOGGER_LOG_LEVEL_DEBUG, appState.name, appState.versionString);
@@ -101,19 +131,14 @@ void init() {
     // Initialize SDL
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         Logger_fatal("Failed to initialize SDL: %s", SDL_GetError());
-        Application_exitImmediate(-1);
+        exit(-1);
     }
 
     // Initialize application subsystems
     Time_init();
-    if (!Window_create(appState.name, onWindowClose)) {
-        Logger_fatal("Failed to create the application window.");
-        Application_exitImmediate(-1);
-    }
-    if (!Renderer_create()) {
-        Logger_fatal("Failed to create the application renderer.");
-        Application_exitImmediate(-1);
-    }
+    Window_create(appState.name, Application_exit);
+    Renderer_create();
+    Input_create();
 
     // Show the application window
     Window_show();
@@ -131,6 +156,7 @@ void destroy() {
     appState.destroyCallback();
 
     // Destroy application subsystems
+    Input_destroy();
     Renderer_destroy();
     Window_destroy();
 
@@ -138,9 +164,9 @@ void destroy() {
     SDL_Quit();
 
     // Exit the application
-    Logger_info("Application exited with code %d.", appState.exitCode);
+    Logger_info("Application shut down successfully.");
     Logger_closeLog();
-    exit(appState.exitCode);
+    exit(0);
 }
 
 void update() {
@@ -162,9 +188,7 @@ void tick() {
 void render() {
     // Call the render callback
     appState.renderCallback();
-}
 
-void onWindowClose() {
-    // Exit with code zero
-    Application_exit(0);
+    // Render the frame
+    Renderer_render();
 }

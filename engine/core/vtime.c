@@ -1,20 +1,33 @@
 #include "vtime.h"
 
+#include <math.h>
+#include <time.h>
 #include <SDL3/SDL.h>
+
+#include "logger.h"
 
 static TimeState timeState;
 
+void Time_setProperties(const TimeProperties* timeProperties) {
+    // Calculate the tick rate
+    timeState.tickRate = 1 / timeProperties->targetTicksPerSecond;
+}
+
 void Time_init() {
+    // Initialize time state
     timeState.nowNS = 0;
     timeState.prevNS = 0;
-
     timeState.currentTime = 0;
     timeState.deltaTime = 0;
     timeState.framesPerSecond = 0;
-
-    timeState.tickRate = 1 / 240.0f;
     timeState.tickTimer = 0;
     timeState.currentTick = 0;
+
+    // Throw an error on invalid tick rate
+    if (timeState.tickRate <= 0 || isinf(timeState.tickRate) || isnan(timeState.tickRate)) {
+        Logger_fatal("Failed to initialize time: Tick rate of %.2g is invalid.", timeState.tickRate);
+        exit(-1);
+    }
 }
 
 void Time_update() {

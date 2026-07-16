@@ -3,6 +3,10 @@
 
 #include "types.h"
 
+typedef struct timeProperties {
+    float targetTicksPerSecond;
+} TimeProperties;
+
 /**
  * The state of the time subsystem
  */
@@ -18,6 +22,8 @@ typedef struct timeState {
     float tickTimer;
     u32 currentTick;
 } TimeState;
+
+void Time_setProperties(const TimeProperties* timeProperties);
 
 /**
  * Initializes the time subsystem

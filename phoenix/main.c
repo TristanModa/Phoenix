@@ -1,13 +1,30 @@
 #include <vulfEngine.h>
+
+#include "constants.h"
 #include "phoenix.h"
 
+void setAppProperties();
+
 int main(void) {
-    // Create and run the application
+    // Create the application
     Application_create("Phoenix", (AppVersion){ 0, 0, 0 },
         Phoenix_init,
         Phoenix_destroy,
         Phoenix_update,
         Phoenix_tick,
         Phoenix_render);
+
+    // Set the properties of all application systems
+    setAppProperties();
+
+    // Run the application
     Application_run();
+}
+
+void setAppProperties() {
+    // Set time properties
+    const TimeProperties timeProperties = {
+        .targetTicksPerSecond = TARGET_TICKS_PER_SECOND
+    };
+    Time_setProperties(&timeProperties);
 }

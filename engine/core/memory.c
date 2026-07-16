@@ -2,20 +2,26 @@
 
 #include <SDL3/SDL.h>
 
+#include "logger.h"
+
 static MemoryState memState;
+
+void Memory_setProperties(const MemoryProperties *memoryProperties) {
+    memState.malloc = memoryProperties->mallocFunc;
+    memState.calloc = memoryProperties->callocFunc;
+    memState.realloc = memoryProperties->reallocFunc;
+    memState.free = memoryProperties->freeFunc;
+}
 
 void Memory_init() {
     // Set SDL memory functions
     SDL_SetMemoryFunctions(Memory_malloc, Memory_calloc, Memory_realloc, Memory_free);
-}
 
-void Memory_setAllocators(const MallocFunc malloc, const CallocFunc calloc, const ReallocFunc realloc,
-    const FreeFunc free) {
-    // Set the memory function pointers
-    memState.malloc = malloc;
-    memState.calloc = calloc;
-    memState.realloc = realloc;
-    memState.free = free;
+    // Throw an error if any allocator functions are null
+    if (!memState.malloc || !memState.calloc || !memState.realloc || !memState.realloc) {
+        Logger_fatal("Failed to initialize memory subsystem: One or more allocator functions are null.");
+        exit(-1);
+    }
 }
 
 void* Memory_malloc(const size_t size) {

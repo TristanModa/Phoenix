@@ -21,7 +21,17 @@ typedef void* (*ReallocFunc)(void*, size_t);
 typedef void  (*FreeFunc)(void*);
 
 /**
- * The state of the memory subsystem
+ * Defines a configuration for the memory subsystem
+ */
+typedef struct memoryProperties {
+    MallocFunc mallocFunc;
+    CallocFunc callocFunc;
+    ReallocFunc reallocFunc;
+    FreeFunc freeFunc;
+} MemoryProperties;
+
+/**
+ * Defines the state of the memory subsystem
  */
 typedef struct memoryState {
     MallocFunc malloc;
@@ -31,19 +41,16 @@ typedef struct memoryState {
 } MemoryState;
 
 /**
+ * Sets the properties of the memory subsystem.
+ * Should only be called prior to running the application via Application_run.
+ * @param memoryProperties The properties struct to use
+ */
+void Memory_setProperties(const MemoryProperties* memoryProperties);
+
+/**
  * Initializes the memory subsystem
  */
 void Memory_init();
-
-/**
- * Sets the memory allocation functions the application should use
- * Should only be called prior to running the application via Application_run.
- * @param malloc The function pointer of the malloc function to use
- * @param calloc The function pointer of the calloc function to use
- * @param realloc The function pointer of the realloc function to use
- * @param free The function pointer of the free function to use
- */
-void Memory_setAllocators(MallocFunc malloc, CallocFunc calloc, ReallocFunc realloc, FreeFunc free);
 
 /**
  * Allocates uninitialized memory on the heap
