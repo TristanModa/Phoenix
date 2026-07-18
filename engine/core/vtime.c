@@ -1,6 +1,7 @@
 #include "vtime.h"
 
 #include <math.h>
+#include <stdlib.h>
 #include <SDL3/SDL.h>
 
 #include "logger.h"

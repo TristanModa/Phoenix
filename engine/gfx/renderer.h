@@ -22,6 +22,8 @@ typedef struct rendererState {
 	 */
 	SDL_Renderer* handle;
 
+
+
 	ArrayList* lines;
 } RendererState;
 

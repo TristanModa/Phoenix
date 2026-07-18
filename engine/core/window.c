@@ -1,5 +1,7 @@
 #include "window.h"
 
+#include <stdlib.h>
+
 #include "logger.h"
 
 static WindowState windowState;

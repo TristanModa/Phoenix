@@ -1,5 +1,6 @@
 #include "memory.h"
 
+#include <stdlib.h>
 #include <SDL3/SDL.h>
 
 #include "logger.h"

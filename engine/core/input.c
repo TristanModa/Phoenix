@@ -1,5 +1,7 @@
 #include "input.h"
 
+#include <stdlib.h>
+
 #include "logger.h"
 #include "memory.h"
 

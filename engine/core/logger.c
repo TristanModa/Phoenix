@@ -1,5 +1,6 @@
 #include "logger.h"
 
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <SDL3/SDL.h>
