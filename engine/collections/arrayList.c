@@ -185,7 +185,7 @@ void ArrayList_setItem(const ArrayList* arrayList, const size_t index, const voi
 
 	// Copy the item to the ArrayList
 	u8* dest = (u8*)arrayList->items + index * arrayList->itemSize;
-	memcpy(dest, item, arrayList->itemSize);
+	Memory_copy(dest, item, arrayList->itemSize);
 }
 
 void ArrayList_pushFront(ArrayList* arrayList, const void* item) {
@@ -212,7 +212,7 @@ void ArrayList_pushBack(ArrayList* arrayList, const void* item) {
 	// Add the item to the ArrayList
 	const size_t index = arrayList->length;
 	u8* dest = (u8*)arrayList->items + index * arrayList->itemSize;
-	memcpy(dest, item, arrayList->itemSize);
+	Memory_copy(dest, item, arrayList->itemSize);
 	arrayList->length++;
 }
 

@@ -102,7 +102,10 @@ void setDefaultSubsystemProperties() {
         .malloc = malloc,
         .calloc = calloc,
         .realloc = realloc,
-        .free = free
+        .free = free,
+        .compare = memcmp,
+        .copy = memcpy,
+        .move = memmove
     };
     Memory_setProperties(&memoryProperties);
 
@@ -139,6 +142,7 @@ void init() {
     // Initialize SDL
     Logger_info("Initializing SDL...");
     Logger_pushIndent();
+    SDL_SetAppMetadata(appState.name, appState.versionString, nullptr);
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         Logger_fatal("Failed to initialize SDL: %s", SDL_GetError());
         exit(EXIT_FAILURE);

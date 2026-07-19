@@ -459,7 +459,7 @@ Node* createNode(const void* item, const size_t itemSize) {
 	}
 
 	// Copy the item into the node data
-	memcpy(node->data, item, itemSize);
+	Memory_copy(node->data, item, itemSize);
 
 	// Set the node's next and previous nodes to a nullptr
 	node->next = nullptr;
