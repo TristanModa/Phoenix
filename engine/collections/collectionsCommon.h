@@ -23,6 +23,17 @@
 #define COLLECTIONS_ERR_INDEX_OOB "Index %zu out of bounds for %s of length %zu."
 #define COLLECTIONS_ERR_POP_EMPTY "Cannot pop from %s with length 0."
 
+#define COLLECTIONS_FATAL_IF(condition, error, ...) \
+	do { \
+		if (condition) { \
+			Logger_fatal(error, __VA_ARGS__); \
+			exit(EXIT_FAILURE); \
+		} \
+	} while(0)
+
+/**
+ * A function pointer for a comparison function between two collection items
+ */
 typedef int (*CollectionsComparisonFn)(const void*, const void*);
 
 #endif //ENGINE_COLLECTIONS_COMMON_H

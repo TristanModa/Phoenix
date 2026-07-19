@@ -108,6 +108,13 @@ void LinkedList_pushBack(LinkedList* linkedList, const void* item);
  */
 void LinkedList_popBack(LinkedList* linkedList);
 
+/**
+ * Finds the first instance of an item that matches key in a LinkedList
+ * @param linkedList The LinkedList to search
+ * @param key The object to compare elements against
+ * @param compare The function to use to compare the elements
+ * @return The matching item, or nullptr if no item could be found
+ */
 void* LinkedList_find(const LinkedList* linkedList, const void* key, CollectionsComparisonFn compare);
 
 #endif //ENGINE_COLLECTIONS_LINKEDLIST_H

@@ -81,7 +81,7 @@ void* ArrayList_getItem(const ArrayList* arrayList, size_t index);
  * @param index The index to set
  * @param item The item to set. Must not be a nullptr.
  */
-void ArrayList_setItem(const ArrayList* arrayList, size_t index, const void* item);
+void ArrayList_setItem(ArrayList* arrayList, size_t index, const void* item);
 
 /**
  * Adds an item to the front of an ArrayList
@@ -106,5 +106,13 @@ void ArrayList_pushBack(ArrayList* arrayList, const void* item);
  */
 void ArrayList_popBack(ArrayList* arrayList);
 
+/**
+ * Finds the first instance of an item that matches key in an ArrayList
+ * @param arrayList The ArrayList to search
+ * @param key The object to compare elements against
+ * @param compare The function to use to compare the elements
+ * @return The matching item, or nullptr if no item could be found
+ */
+void* ArrayList_find(const ArrayList* arrayList, const void* key, CollectionsComparisonFn compare);
 
 #endif //ENGINE_COLLECTIONS_ARRAYLIST_H
