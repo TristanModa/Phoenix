@@ -6,28 +6,28 @@
 /**
  * Function pointer for a malloc function
  */
-typedef void* (*MallocFunc)(size_t);
+typedef void* (*MallocFn)(size_t);
 /**
  * Function pointer for a calloc function
  */
-typedef void* (*CallocFunc)(size_t, size_t);
+typedef void* (*CallocFn)(size_t, size_t);
 /**
  * Function pointer for a realloc function
  */
-typedef void* (*ReallocFunc)(void*, size_t);
+typedef void* (*ReallocFn)(void*, size_t);
 /**
  * Function pointer for a free function
  */
-typedef void  (*FreeFunc)(void*);
+typedef void  (*FreeFn)(void*);
 
 /**
  * Defines a configuration for the memory subsystem
  */
 typedef struct memoryProperties {
-    MallocFunc mallocFunc;
-    CallocFunc callocFunc;
-    ReallocFunc reallocFunc;
-    FreeFunc freeFunc;
+    MallocFn malloc;
+    CallocFn calloc;
+    ReallocFn realloc;
+    FreeFn free;
 } MemoryProperties;
 
 /**
@@ -37,19 +37,19 @@ typedef struct memoryState {
     /**
      * Function pointer for the malloc function to use
      */
-    MallocFunc malloc;
+    MallocFn malloc;
     /**
      * Function pointer for the calloc function to use
      */
-    CallocFunc calloc;
+    CallocFn calloc;
     /**
      * Function pointer for the realloc function to use
      */
-    ReallocFunc realloc;
+    ReallocFn realloc;
     /**
      * Function pointer for the free function to use
      */
-    FreeFunc free;
+    FreeFn free;
 } MemoryState;
 
 /**

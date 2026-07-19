@@ -7,22 +7,11 @@
 #include "core/core.h"
 #include "colors.h"
 
-typedef struct line {
-	Color color;
-	int x1, y1;
-	int x2, y2;
-} Line;
-
 /**
  * The state of the renderer subsystem
  */
 typedef struct rendererState {
-	/**
-	 * The SDL handle of the renderer
-	 */
-	SDL_Renderer* handle;
-
-
+	SDL_GPUDevice* gpuDevice;
 
 	ArrayList* lines;
 } RendererState;
@@ -41,7 +30,5 @@ void Renderer_destroy();
  * Renders the current frame and draws it to the window
  */
 void Renderer_render();
-
-void Renderer_drawLine(int x1, int y1, int x2, int y2, Color color);
 
 #endif //ENGINE_GFX_RENDERER_H

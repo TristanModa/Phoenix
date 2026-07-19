@@ -60,6 +60,7 @@ void Application_run() {
 
     // Destroy the application
     destroy();
+    exit(EXIT_SUCCESS);
 }
 
 void Application_exit() {
@@ -70,7 +71,7 @@ void Application_exit() {
 void Application_exitImmediate() {
     Logger_info("Application set to exit immediately.");
     Logger_closeLog();
-    exit(0);
+    exit(EXIT_SUCCESS);
 }
 
 const char* Application_getName() {
@@ -98,10 +99,10 @@ void setDefaultSubsystemProperties() {
 
     // Set the default memory properties
     const MemoryProperties memoryProperties = {
-        .mallocFunc = malloc,
-        .callocFunc = calloc,
-        .reallocFunc = realloc,
-        .freeFunc = free
+        .malloc = malloc,
+        .calloc = calloc,
+        .realloc = realloc,
+        .free = free
     };
     Memory_setProperties(&memoryProperties);
 
@@ -140,7 +141,7 @@ void init() {
     Logger_pushIndent();
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         Logger_fatal("Failed to initialize SDL: %s", SDL_GetError());
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
     Logger_popIndent();
 
@@ -177,7 +178,6 @@ void destroy() {
     // Exit the application
     Logger_info("Application shut down successfully.");
     Logger_closeLog();
-    exit(0);
 }
 
 void update() {

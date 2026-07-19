@@ -7,6 +7,9 @@ add_library(VulfEngine SHARED
 		collections/collections.h
 		collections/arrayList.h
 		collections/arrayList.c
+		collections/collectionsCommon.h
+		collections/linkedList.h
+		collections/linkedList.c
 
         # Core
         core/core.h
@@ -16,6 +19,8 @@ add_library(VulfEngine SHARED
         core/logger.c
         core/memory.h
         core/memory.c
+		core/resources.h
+		core/resources.c
         core/types.h
         core/vtime.h
         core/vtime.c

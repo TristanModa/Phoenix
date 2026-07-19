@@ -22,7 +22,7 @@ void Input_create() {
     inputState.buttons = Memory_malloc(inputState.buttonCount * sizeof(VirtualButton));
     if (!inputState.buttons) {
         Logger_fatal("Failed to create input subsystem: Memory allocation failed.");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     // Populate the button array

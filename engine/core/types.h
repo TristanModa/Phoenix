@@ -40,6 +40,6 @@ typedef int64_t s64;
 /**
  * A function pointer for a void function with no arguments
  */
-typedef void (*VoidFunc)(void);
+typedef void (*VoidFn)();
 
 #endif //ENGINE_CORE_TYPES_H

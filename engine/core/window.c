@@ -24,7 +24,7 @@ void Window_create(const char *title, const WindowCloseCallback windowCloseCallb
         windowState.creationParameters.flags | SDL_WINDOW_HIDDEN);
     if (!windowState.handle) {
         Logger_error("Failed to create window: SDL Error: %s", SDL_GetError());
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     // Set additional window properties

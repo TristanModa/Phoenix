@@ -8,10 +8,10 @@
 static MemoryState memState;
 
 void Memory_setProperties(const MemoryProperties *memoryProperties) {
-    memState.malloc = memoryProperties->mallocFunc;
-    memState.calloc = memoryProperties->callocFunc;
-    memState.realloc = memoryProperties->reallocFunc;
-    memState.free = memoryProperties->freeFunc;
+    memState.malloc = memoryProperties->malloc;
+    memState.calloc = memoryProperties->calloc;
+    memState.realloc = memoryProperties->realloc;
+    memState.free = memoryProperties->free;
 }
 
 void Memory_init() {
@@ -22,9 +22,9 @@ void Memory_init() {
     SDL_SetMemoryFunctions(Memory_malloc, Memory_calloc, Memory_realloc, Memory_free);
 
     // Throw an error if any allocator functions are null
-    if (!memState.malloc || !memState.calloc || !memState.realloc || !memState.realloc) {
+    if (!memState.malloc || !memState.calloc || !memState.realloc || !memState.free) {
         Logger_fatal("Failed to initialize memory subsystem: One or more allocator functions are null.");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     // Pop the log indent

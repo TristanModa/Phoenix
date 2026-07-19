@@ -11,7 +11,7 @@ constexpr int VERSION_STRING_MAX_LEN = 16;
 /**
  * Function pointer for application callbacks
  */
-typedef VoidFunc AppCallback;
+typedef VoidFn AppCallback;
 
 /**
  * The version of the application

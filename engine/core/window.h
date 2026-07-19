@@ -8,7 +8,7 @@
 /**
  * A void function pointer for a window close callback
  */
-typedef VoidFunc WindowCloseCallback;
+typedef VoidFn WindowCloseCallback;
 
 /**
  * Defines a configuration for the window subsystem
