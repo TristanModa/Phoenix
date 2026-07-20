@@ -1,20 +1,18 @@
 #include "arrayList.h"
 
-#include <stdlib.h>
-
 #include "core/core.h"
 
 ArrayList* ArrayList_create(const size_t itemSize, const size_t capacity) {
-	// Throw a fatal error if the item size is zero
-	COLLECTIONS_FATAL_IF(itemSize == 0,
-		COLLECTIONS_ERR_FAILED_CREATE COLLECTIONS_ERR_ITEM_SIZE_ZERO,
-		COLLECTIONS_ERR_ARRAY_LIST);
+	// Return a nullptr if the item size is zero
+	if (itemSize == 0) {
+		return nullptr;
+	}
 
 	// Allocate memory for the ArrayList struct
 	ArrayList* arrayList = Memory_malloc(sizeof(*arrayList));
-	COLLECTIONS_FATAL_IF(!arrayList,
-		COLLECTIONS_ERR_FAILED_CREATE COLLECTIONS_ERR_MALLOC_FAIL,
-		COLLECTIONS_ERR_ARRAY_LIST, COLLECTIONS_ERR_ARRAY_LIST " instance");
+	if (!arrayList) {
+		return nullptr;
+	}
 
 	// Initialize ArrayList fields
 	arrayList->itemSize = itemSize;
@@ -23,18 +21,19 @@ ArrayList* ArrayList_create(const size_t itemSize, const size_t capacity) {
 
 	// Allocate memory for the ArrayList items
 	arrayList->items = capacity != 0 ? Memory_malloc(itemSize * capacity) : nullptr;
-	COLLECTIONS_FATAL_IF(!arrayList->items && capacity != 0,
-		COLLECTIONS_ERR_FAILED_CREATE COLLECTIONS_ERR_MALLOC_FAIL,
-		COLLECTIONS_ERR_ARRAY_LIST, COLLECTIONS_ERR_ARRAY_LIST " items");
+	if (!arrayList->items && capacity != 0) {
+		Memory_free(arrayList);
+		return nullptr;
+	}
 
 	return arrayList;
 }
 
 void ArrayList_destroy(ArrayList* arrayList) {
-	// Throw a fatal error if the ArrayList is a nullptr
-	COLLECTIONS_FATAL_IF(!arrayList,
-		COLLECTIONS_ERR_FAILED_DESTROY COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, COLLECTIONS_ERR_ARRAY_LIST);
+	// Return if the ArrayList is a nullptr
+	if (!arrayList) {
+		return;
+	}
 
 	// Release the ArrayList and its items
 	Memory_free(arrayList->items);
@@ -42,47 +41,38 @@ void ArrayList_destroy(ArrayList* arrayList) {
 }
 
 size_t ArrayList_getLength(const ArrayList* arrayList) {
-	// Throw a fatal error if the ArrayList is a nullptr
-	COLLECTIONS_FATAL_IF(!arrayList,
-		COLLECTIONS_ERR_FAILED_GET_LENGTH COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, COLLECTIONS_ERR_ARRAY_LIST);
+	// Return 0 if the ArrayList is a nullptr
+	if (!arrayList) {
+		return 0;
+	}
 
 	// Return the length of the ArrayList
 	return arrayList->length;
 }
 
-bool ArrayList_inBounds(const ArrayList* arrayList, const size_t index) {
-	// Throw a fatal error if the ArrayList is a nullptr
-	COLLECTIONS_FATAL_IF(!arrayList,
-		COLLECTIONS_ERR_FAILED_BOUNDS_CHECK COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, COLLECTIONS_ERR_ARRAY_LIST);
-
-	// Return true if the index is less than the length
-	return index < arrayList->length;
+size_t ArrayList_getCapacity(const ArrayList* arrayList) {
+	
 }
 
 void ArrayList_clear(ArrayList* arrayList) {
-	// Throw a fatal error if the ArrayList is a nullptr
-	COLLECTIONS_FATAL_IF(!arrayList,
-		COLLECTIONS_ERR_FAILED_CLEAR COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, COLLECTIONS_ERR_ARRAY_LIST);
+	// Return if the ArrayList is a nullptr
+	if (!arrayList) {
+		return;
+	}
 
 	// Set the length of the ArrayList to zero
 	arrayList->length = 0;
 }
 
-void ArrayList_resize(ArrayList* arrayList, const size_t capacity) {
-	// Throw a fatal error if the ArrayList is a nullptr
-	COLLECTIONS_FATAL_IF(!arrayList,
-		"Failed to resize ArrayList: " COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST);
+bool ArrayList_resize(ArrayList* arrayList, const size_t capacity) {
+	// Return if the ArrayList is a nullptr
+	if (!arrayList) {
+		return false;
+	}
 
 	// Return if the new capacity is less than the length
 	if (capacity < arrayList->length) {
-		Logger_error(
-			"Failed to resize ArrayList: " "New capacity (%zu) is not large enough to contain %zu items.",
-			capacity, arrayList->length);
-		return;
+		return false;
 	}
 
 	// Free the buffer if the desired capacity is zero
@@ -90,46 +80,45 @@ void ArrayList_resize(ArrayList* arrayList, const size_t capacity) {
 		Memory_free(arrayList->items);
 		arrayList->items = nullptr;
 		arrayList->capacity = 0;
-		return;
+		return true;
 	}
 
 	// Reallocate the ArrayList items
 	void* items = Memory_realloc(arrayList->items, arrayList->itemSize * capacity);
-	COLLECTIONS_FATAL_IF(!items,
-		"Failed to resize ArrayList" COLLECTIONS_ERR_MALLOC_FAIL,
-		COLLECTIONS_ERR_ARRAY_LIST " items");
+	if (!items) {
+		return false;
+	}
 
 	// Update the ArrayList
 	arrayList->capacity = capacity;
 	arrayList->items = items;
+
+	// Return success
+	return true;
 }
 
-void ArrayList_insert(ArrayList* arrayList, const void* item, const size_t index) {
-	// Throw a fatal error if the ArrayList is a nullptr
-	COLLECTIONS_FATAL_IF(!arrayList,
-		COLLECTIONS_ERR_FAILED_INSERT COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, COLLECTIONS_ERR_ARRAY_LIST);
-
-	// Throw a fatal error if the item is a nullptr
-	COLLECTIONS_FATAL_IF(!item,
-		COLLECTIONS_ERR_FAILED_INSERT COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, "Item");
-
-	// Use push back function if the item should be added to the end of the ArrayList
-	if (index == arrayList->length) {
-		ArrayList_pushBack(arrayList, item);
-		return;
+void* ArrayList_insert(ArrayList* arrayList, const void* item, const size_t index) {
+	// Return if the ArrayList is a nullptr
+	if (!arrayList) {
+		return nullptr;
 	}
 
-	// Throw a fatal error if the index is outside the bounds of the ArrayList
-	COLLECTIONS_FATAL_IF(!ArrayList_inBounds(arrayList, index),
-		COLLECTIONS_ERR_FAILED_INSERT COLLECTIONS_ERR_INDEX_OOB,
-		COLLECTIONS_ERR_ARRAY_LIST, index, COLLECTIONS_ERR_ARRAY_LIST, arrayList->length);
+	// Return if the item is a nullptr
+	if (!item) {
+		return nullptr;
+	}
+
+	// Return if the index is out of bounds
+	if (index > arrayList->length) {
+		return nullptr;
+	}
 
 	// Resize the ArrayList if capacity is reached
 	if (arrayList->length == arrayList->capacity) {
 		const size_t newCapacity = arrayList->capacity > 0 ? arrayList->capacity * 2 : 1;
-		ArrayList_resize(arrayList, newCapacity);
+		if (!ArrayList_resize(arrayList, newCapacity)) {
+			return nullptr;
+		}
 	}
 
 	// Move all items after the insertion index forward one
@@ -141,26 +130,24 @@ void ArrayList_insert(ArrayList* arrayList, const void* item, const size_t index
 	}
 
 	// Set the value of the item
-	ArrayList_setItem(arrayList, index, item);
+	dest = (u8*)arrayList->items + index * arrayList->itemSize;
+	Memory_copy(dest, item, arrayList->itemSize);
 
 	// Increment the length of the ArrayList
 	arrayList->length++;
+
+	// Return the inserted item
+	return dest;
 }
 
 void ArrayList_remove(ArrayList* arrayList, const size_t index) {
-	// Throw a fatal error if the ArrayList is a nullptr
-	COLLECTIONS_FATAL_IF(!arrayList,
-		COLLECTIONS_ERR_FAILED_REMOVE COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, COLLECTIONS_ERR_ARRAY_LIST);
+	// Return if the ArrayList is a nullptr
+	if (!arrayList) {
+		return;
+	}
 
-	// Throw a fatal error if the index is outside the bounds of the ArrayList
-	COLLECTIONS_FATAL_IF(!ArrayList_inBounds(arrayList, index),
-		COLLECTIONS_ERR_FAILED_REMOVE COLLECTIONS_ERR_INDEX_OOB,
-		COLLECTIONS_ERR_ARRAY_LIST, index, COLLECTIONS_ERR_ARRAY_LIST, arrayList->length);
-
-	// Use pop back function if the item should be removed from the end of the ArrayList
-	if (index == arrayList->length - 1) {
-		ArrayList_popBack(arrayList);
+	// Return if the index is out of bounds
+	if (index >= arrayList->length) {
 		return;
 	}
 
@@ -176,88 +163,92 @@ void ArrayList_remove(ArrayList* arrayList, const size_t index) {
 	arrayList->length--;
 }
 
-void* ArrayList_getItem(const ArrayList* arrayList, const size_t index) {
-	// Throw a fatal error if the ArrayList is a nullptr
-	COLLECTIONS_FATAL_IF(!arrayList,
-		COLLECTIONS_ERR_FAILED_GET COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, COLLECTIONS_ERR_ARRAY_LIST);
+void* ArrayList_getItem(ArrayList* arrayList, const size_t index) {
+	// Return a nullptr if the ArrayList is a nullptr
+	if (!arrayList) {
+		return nullptr;
+	}
 
-	// Throw a fatal error if the index is outside the bounds of the ArrayList
-	COLLECTIONS_FATAL_IF(!ArrayList_inBounds(arrayList, index),
-		COLLECTIONS_ERR_FAILED_GET COLLECTIONS_ERR_INDEX_OOB,
-		COLLECTIONS_ERR_ARRAY_LIST, index, COLLECTIONS_ERR_ARRAY_LIST, arrayList->length);
+	// Return if the index is out of bounds
+	if (index >= arrayList->length) {
+		return nullptr;
+	}
 
 	// Return a pointer to the item
 	return (u8*)arrayList->items + index * arrayList->itemSize;
 }
 
-// ReSharper disable once CppParameterMayBeConstPtrOrRef
-void ArrayList_setItem(ArrayList* arrayList, const size_t index, const void* item) {
-	// Throw a fatal error if the ArrayList is a nullptr
-	COLLECTIONS_FATAL_IF(!arrayList,
-		COLLECTIONS_ERR_FAILED_SET COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, COLLECTIONS_ERR_ARRAY_LIST);
+void* ArrayList_setItem(ArrayList* arrayList, const size_t index, const void* item) {
+	// Return if the ArrayList is a nullptr
+	if (!arrayList) {
+		return nullptr;
+	}
 
-	// Throw a fatal error if the index is outside the bounds of the ArrayList
-	COLLECTIONS_FATAL_IF(!ArrayList_inBounds(arrayList, index),
-		COLLECTIONS_ERR_FAILED_SET COLLECTIONS_ERR_INDEX_OOB,
-		COLLECTIONS_ERR_ARRAY_LIST, index, COLLECTIONS_ERR_ARRAY_LIST, arrayList->length);
+	// Return if the item is a nullptr
+	if (!item) {
+		return nullptr;
+	}
 
-	// Throw a fatal error if item is a nullptr
-	COLLECTIONS_FATAL_IF(!item,
-		COLLECTIONS_ERR_FAILED_SET COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, "Item");
+	// Return if the index is out of bounds
+	if (index >= arrayList->length) {
+		return nullptr;
+	}
 
 	// Copy the item to the ArrayList
 	u8* dest = (u8*)arrayList->items + index * arrayList->itemSize;
 	Memory_copy(dest, item, arrayList->itemSize);
+
+	// Return the item
+	return dest;
 }
 
-void ArrayList_pushFront(ArrayList* arrayList, const void* item) {
-	// Throw a fatal error if the ArrayList is a nullptr
-	COLLECTIONS_FATAL_IF(!arrayList,
-		COLLECTIONS_ERR_FAILED_PUSH COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, COLLECTIONS_ERR_ARRAY_LIST);
+void* ArrayList_pushFront(ArrayList* arrayList, const void* item) {
+	// Return a nullptr if the ArrayList is a nullptr
+	if (!arrayList) {
+		return nullptr;
+	}
 
-	// Throw a fatal error if the item is a nullptr
-	COLLECTIONS_FATAL_IF(!item,
-		COLLECTIONS_ERR_FAILED_INSERT COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, "Item");
+	// Return a nullptr if the item is a nullptr
+	if (!item) {
+		return nullptr;
+	}
 
 	// Insert the element in the first position
-	ArrayList_insert(arrayList, item, 0);
+	return ArrayList_insert(arrayList, item, 0);
 }
 
 void ArrayList_popFront(ArrayList* arrayList) {
-	// Throw a fatal error if the ArrayList is a nullptr
-	COLLECTIONS_FATAL_IF(!arrayList,
-		COLLECTIONS_ERR_FAILED_POP COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, COLLECTIONS_ERR_ARRAY_LIST);
+	// Return if the ArrayList is a nullptr
+	if (!arrayList) {
+		return;
+	}
 
-	// Throw a fatal error if the ArrayList has no items
-	COLLECTIONS_FATAL_IF(arrayList->length == 0,
-		COLLECTIONS_ERR_FAILED_POP COLLECTIONS_ERR_POP_EMPTY,
-		COLLECTIONS_ERR_ARRAY_LIST, COLLECTIONS_ERR_ARRAY_LIST);
+	// Return if the ArrayList has no items
+	if (arrayList->length == 0) {
+		return;
+	}
 
 	// Remove the element from the first position
 	ArrayList_remove(arrayList, 0);
 }
 
-void ArrayList_pushBack(ArrayList* arrayList, const void* item) {
-	// Throw a fatal error if the ArrayList is a nullptr
-	COLLECTIONS_FATAL_IF(!arrayList,
-		COLLECTIONS_ERR_FAILED_PUSH COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, COLLECTIONS_ERR_ARRAY_LIST);
+void* ArrayList_pushBack(ArrayList* arrayList, const void* item) {
+	// Return a nullptr if the ArrayList is a nullptr
+	if (!arrayList) {
+		return nullptr;
+	}
 
-	// Throw a fatal error if the item is a nullptr
-	COLLECTIONS_FATAL_IF(!item,
-		COLLECTIONS_ERR_FAILED_PUSH COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, "Item");
+	// Return a nullptr if the item is a nullptr
+	if (!item) {
+		return nullptr;
+	}
 
 	// Resize the ArrayList if capacity is reached
 	if (arrayList->length == arrayList->capacity) {
 		const size_t newCapacity = arrayList->capacity > 0 ? arrayList->capacity * 2 : 1;
-		ArrayList_resize(arrayList, newCapacity);
+		if (!ArrayList_resize(arrayList, newCapacity)) {
+			return nullptr;
+		}
 	}
 
 	// Add the item to the ArrayList
@@ -265,39 +256,42 @@ void ArrayList_pushBack(ArrayList* arrayList, const void* item) {
 	u8* dest = (u8*)arrayList->items + index * arrayList->itemSize;
 	Memory_copy(dest, item, arrayList->itemSize);
 	arrayList->length++;
+
+	// Return the item
+	return dest;
 }
 
 void ArrayList_popBack(ArrayList* arrayList) {
-	// Throw a fatal error if the ArrayList is a nullptr
-	COLLECTIONS_FATAL_IF(!arrayList,
-		COLLECTIONS_ERR_FAILED_POP COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, COLLECTIONS_ERR_ARRAY_LIST);
+	// Return if the ArrayList is a nullptr
+	if (!arrayList) {
+		return;
+	}
 
-	// Throw a fatal error if the ArrayList has no items
-	COLLECTIONS_FATAL_IF(arrayList->length == 0,
-		COLLECTIONS_ERR_FAILED_POP COLLECTIONS_ERR_POP_EMPTY,
-		COLLECTIONS_ERR_ARRAY_LIST, COLLECTIONS_ERR_ARRAY_LIST);
+	// Return if the ArrayList has no items
+	if (arrayList->length == 0) {
+		return;
+	}
 
 	// Decrement the length of the ArrayList
 	arrayList->length--;
 }
 
-void* ArrayList_find(const ArrayList* arrayList, const void* key, const CollectionsComparisonFn compare) {
-	// Throw a fatal error if the ArrayList is a nullptr
-	COLLECTIONS_FATAL_IF(!arrayList,
-		COLLECTIONS_ERR_FAILED_FIND COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, COLLECTIONS_ERR_ARRAY_LIST);
+void* ArrayList_find(ArrayList* arrayList, const void* key, const ArrayListComparisonFn compare) {
+	// Return if the ArrayList is a nullptr
+	if (!arrayList) {
+		return nullptr;
+	}
 
-	// Throw a fatal error if the key is a nullptr
-	COLLECTIONS_FATAL_IF(!key,
-		COLLECTIONS_ERR_FAILED_FIND COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, "Key");
+	// Return if the key is a nullptr
+	if (!key) {
+		return nullptr;
+	}
 
-	// Throw a fatal error if the compare function is a nullptr
-	COLLECTIONS_FATAL_IF(!compare,
-		COLLECTIONS_ERR_FAILED_FIND COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_ARRAY_LIST, "Compare function");
-	
+	// Return if the compare function is a nullptr
+	if (!compare) {
+		return nullptr;
+	}
+
 	// Iterate through the ArrayList until a match is found
 	for (size_t i = 0; i < arrayList->length; i++) {
 		void* item = ArrayList_getItem(arrayList, i);

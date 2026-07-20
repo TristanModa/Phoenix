@@ -1,38 +1,40 @@
 #include "linkedList.h"
 
+#include <assert.h>
 #include <stdlib.h>
 
-#include "collectionsCommon.h"
 #include "core/core.h"
 
-static Node* createNode(const void* item, size_t itemSize);
+static Node* createNode(const LinkedList* linkedList, const void* item);
 static Node* getNode(const LinkedList* linkedList, size_t index);
+static void removeNode(LinkedList* linkedList, Node* node);
 
 LinkedList* LinkedList_create(const size_t itemSize) {
-	// Throw a fatal error if the item size is zero
-	COLLECTIONS_FATAL_IF(itemSize == 0,
-		COLLECTIONS_ERR_FAILED_CREATE COLLECTIONS_ERR_ITEM_SIZE_ZERO,
-		COLLECTIONS_ERR_LINKED_LIST);
+	// Return a nullptr if the item size is zero
+	if (itemSize == 0) {
+		return nullptr;
+	}
 
 	// Allocate memory for the LinkedList
-	LinkedList* linkedList = Memory_malloc(sizeof(LinkedList));
-	COLLECTIONS_FATAL_IF(!linkedList,
-		COLLECTIONS_ERR_FAILED_CREATE COLLECTIONS_ERR_MALLOC_FAIL,
-		COLLECTIONS_ERR_LINKED_LIST, COLLECTIONS_ERR_LINKED_LIST " instance");
+	LinkedList* linkedList = Memory_malloc(sizeof(*linkedList));
+	if (!linkedList) {
+		return nullptr;
+	}
 
 	// Initialize the LinkedList
 	linkedList->length = 0;
 	linkedList->itemSize = itemSize;
 	linkedList->head = nullptr;
 	linkedList->tail = nullptr;
+
 	return linkedList;
 }
 
 void LinkedList_destroy(LinkedList* linkedList) {
-	// Throw a fatal error if the LinkedList is a nullptr
-	COLLECTIONS_FATAL_IF(!linkedList,
-		COLLECTIONS_ERR_FAILED_DESTROY COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_LINKED_LIST, COLLECTIONS_ERR_LINKED_LIST);
+	// Return if the LinkedList is a nullptr
+	if (!linkedList) {
+		return;
+	}
 
 	// Release the LinkedList and its nodes
 	LinkedList_clear(linkedList);
@@ -40,30 +42,20 @@ void LinkedList_destroy(LinkedList* linkedList) {
 }
 
 size_t LinkedList_getLength(const LinkedList* linkedList) {
-	// Throw a fatal error if the LinkedList is a nullptr
-	COLLECTIONS_FATAL_IF(!linkedList,
-		COLLECTIONS_ERR_FAILED_GET_LENGTH COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_LINKED_LIST, COLLECTIONS_ERR_LINKED_LIST);
+	// Return 0 if the LinkedList is a nullptr
+	if (!linkedList) {
+		return 0;
+	}
 
-	// Return the length of the LinkedList
+	// Return the length of the list
 	return linkedList->length;
 }
 
-bool LinkedList_inBounds(const LinkedList* linkedList, const size_t index) {
-	// Throw a fatal error if the LinkedList is a nullptr
-	COLLECTIONS_FATAL_IF(!linkedList,
-		COLLECTIONS_ERR_FAILED_BOUNDS_CHECK COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_LINKED_LIST, COLLECTIONS_ERR_LINKED_LIST);
-
-	// Return true if the index is less than the length
-	return index < linkedList->length;
-}
-
 void LinkedList_clear(LinkedList* linkedList) {
-	// Throw a fatal error if the LinkedList is a nullptr
-	COLLECTIONS_FATAL_IF(!linkedList,
-		COLLECTIONS_ERR_FAILED_CLEAR COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_LINKED_LIST, COLLECTIONS_ERR_LINKED_LIST);
+	// Return if the LinkedList is a nullptr
+	if (!linkedList) {
+		return;
+	}
 
 	// Free each node of the LinkedList
 	Node* current = linkedList->head;
@@ -80,43 +72,39 @@ void LinkedList_clear(LinkedList* linkedList) {
 	linkedList->length = 0;
 }
 
-void LinkedList_insert(LinkedList* linkedList, const void* item, const size_t index) {
-	// Throw a fatal error if the LinkedList is a nullptr
-	COLLECTIONS_FATAL_IF(!linkedList,
-		COLLECTIONS_ERR_FAILED_INSERT COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_LINKED_LIST, COLLECTIONS_ERR_LINKED_LIST);
+void* LinkedList_insert(LinkedList* linkedList, const void* item, const size_t index) {
+	// Return if the LinkedList is a nullptr
+	if (!linkedList) {
+		return nullptr;
+	}
 
-	// Throw a fatal error if the item is a nullptr
-	COLLECTIONS_FATAL_IF(!item,
-		COLLECTIONS_ERR_FAILED_INSERT COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_LINKED_LIST, "Item");
+	// Return if the item is a nullptr
+	if (!item) {
+		return nullptr;
+	}
 
-	// Push front the element if it should be inserted at the start of the list
+	// Push front the item if it should be inserted at the start of the list
 	if (index == 0) {
-		LinkedList_pushFront(linkedList, item);
-		return;
+		return LinkedList_pushFront(linkedList, item);
 	}
 
 	// Push back the item if it should be inserted at the end of the list
 	if (index == linkedList->length) {
-		LinkedList_pushBack(linkedList, item);
-		return;
+		return LinkedList_pushBack(linkedList, item);
 	}
 
-	// Throw a fatal error if the index is outside the bounds of the LinkedList
-	COLLECTIONS_FATAL_IF(!LinkedList_inBounds(linkedList, index),
-		COLLECTIONS_ERR_FAILED_INSERT COLLECTIONS_ERR_INDEX_OOB,
-		COLLECTIONS_ERR_LINKED_LIST, index, COLLECTIONS_ERR_LINKED_LIST, linkedList->length);
+	// Return if the index is out of bounds
+	if (index >= linkedList->length) {
+		return nullptr;
+	}
 
 	// Get the next and previous nodes
 	Node* next = getNode(linkedList, index);
 	Node* previous = next->previous;
 
 	// Create the node to insert
-	Node* node = createNode(item, linkedList->itemSize);
-	COLLECTIONS_FATAL_IF(!node,
-		COLLECTIONS_ERR_FAILED_INSERT COLLECTIONS_ERR_MALLOC_FAIL,
-		COLLECTIONS_ERR_LINKED_LIST, "node");
+	Node* node = createNode(linkedList, item);
+	if (!node) { return nullptr; }
 	node->next = next;
 	node->previous = previous;
 
@@ -126,101 +114,83 @@ void LinkedList_insert(LinkedList* linkedList, const void* item, const size_t in
 
 	// Increment length
 	linkedList->length++;
+
+	// Return the inserted item
+	return node->data;
 }
 
 void LinkedList_remove(LinkedList* linkedList, const size_t index) {
-	// Throw a fatal error if the LinkedList is a nullptr
-	COLLECTIONS_FATAL_IF(!linkedList,
-		COLLECTIONS_ERR_FAILED_REMOVE COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_LINKED_LIST, COLLECTIONS_ERR_LINKED_LIST);
-
-	// Throw a fatal error if the index is outside the bounds of the LinkedList
-	COLLECTIONS_FATAL_IF(!LinkedList_inBounds(linkedList, index),
-		COLLECTIONS_ERR_FAILED_REMOVE COLLECTIONS_ERR_INDEX_OOB,
-		COLLECTIONS_ERR_LINKED_LIST, index, COLLECTIONS_ERR_LINKED_LIST, linkedList->length);
-
-	// Pop front the element if it should be removed from the start of the list
-	if (index == 0) {
-		LinkedList_popFront(linkedList);
+	// Return if the LinkedList is a nullptr
+	if (!linkedList) {
 		return;
 	}
 
-	// Pop back the element if it should be removed from the end of the list
-	if (index == linkedList->length - 1) {
-		LinkedList_popBack(linkedList);
+	// Return if the index is out of bounds
+	if (index <= linkedList->length) {
 		return;
 	}
 
-	// Get the node to remove
+	// Remove the node
 	Node* node = getNode(linkedList, index);
-
-	// Point the next and previous nodes to each other
-	node->next->previous = node->previous;
-	node->previous->next = node->next;
-
-	// Release the node and its data
-	Memory_free(node->data);
-	Memory_free(node);
-
-	// Decrement the length
-	linkedList->length--;
+	removeNode(linkedList, node);
 }
 
-void* LinkedList_getItem(const LinkedList* linkedList, const size_t index) {
-	// Throw a fatal error if the LinkedList is a nullptr
-	COLLECTIONS_FATAL_IF(!linkedList,
-		COLLECTIONS_ERR_FAILED_GET COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_LINKED_LIST, COLLECTIONS_ERR_LINKED_LIST);
+void* LinkedList_getItem(LinkedList* linkedList, const size_t index) {
+	// Return a nullptr if the LinkedList is a nullptr
+	if (!linkedList) {
+		return nullptr;
+	}
 
 	// Get the node
 	Node* node = getNode(linkedList, index);
-	COLLECTIONS_FATAL_IF(!node,
-		COLLECTIONS_ERR_FAILED_GET COLLECTIONS_ERR_INDEX_OOB,
-		COLLECTIONS_ERR_LINKED_LIST, index, COLLECTIONS_ERR_LINKED_LIST, linkedList->length);
+	if (!node) {
+		return nullptr;
+	}
 
 	// Return the node data
 	return node->data;
 }
 
-// ReSharper disable once CppParameterMayBeConstPtrOrRef
-void LinkedList_setItem(LinkedList* linkedList, const size_t index, const void* item) {
-	// Throw a fatal error if the index is outside the bounds of the LinkedList
-	COLLECTIONS_FATAL_IF(!LinkedList_inBounds(linkedList, index),
-		COLLECTIONS_ERR_FAILED_SET COLLECTIONS_ERR_INDEX_OOB,
-		COLLECTIONS_ERR_LINKED_LIST, index, COLLECTIONS_ERR_LINKED_LIST, linkedList->length);
+void* LinkedList_setItem(LinkedList* linkedList, const size_t index, const void* item) {
+	// Return if the LinkedList is a nullptr
+	if (!linkedList) {
+		return nullptr;
+	}
+
+	// Return if the item is a nullptr
+	if (!item) {
+		return nullptr;
+	}
 
 	// Get the node to set the value of
 	Node* node = getNode(linkedList, index);
-	COLLECTIONS_FATAL_IF(!node,
-		COLLECTIONS_ERR_FAILED_SET COLLECTIONS_ERR_INDEX_OOB,
-		COLLECTIONS_ERR_LINKED_LIST, index, COLLECTIONS_ERR_LINKED_LIST, linkedList->length);
-
-	// Throw a fatal error if item is a nullptr
-	COLLECTIONS_FATAL_IF(!item,
-		COLLECTIONS_ERR_FAILED_SET COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_LINKED_LIST, "Item");
+	if (!node) {
+		return nullptr;
+	}
 
 	// Copy the data to this node
 	Memory_copy(node->data, item, linkedList->itemSize);
+
+	// Return the node data
+	return node->data;
 }
 
-void LinkedList_pushFront(LinkedList* linkedList, const void* item) {
-	// Throw a fatal error if the LinkedList is a nullptr
-	COLLECTIONS_FATAL_IF(!linkedList,
-		COLLECTIONS_ERR_FAILED_PUSH COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_LINKED_LIST, COLLECTIONS_ERR_LINKED_LIST);
+void* LinkedList_pushFront(LinkedList* linkedList, const void* item) {
+	// Return a nullptr if the LinkedList is a nullptr
+	if (!linkedList) {
+		return nullptr;
+	}
 
-	// Throw a fatal error if the item is a nullptr
-	COLLECTIONS_FATAL_IF(!item,
-		COLLECTIONS_ERR_FAILED_PUSH COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_LINKED_LIST, "Item");
+	// Return a nullptr if the item is a nullptr
+	if (!item) {
+		return nullptr;
+	}
 
 	// Create the node
-	Node* node = createNode(item, linkedList->itemSize);
-	COLLECTIONS_FATAL_IF(!node,
-		COLLECTIONS_ERR_FAILED_PUSH COLLECTIONS_ERR_MALLOC_FAIL,
-		COLLECTIONS_ERR_LINKED_LIST, "node");
-	node->next = linkedList->head;
+	Node* node = createNode(linkedList, item);
+	if (!node) {
+		return nullptr;
+	}
 
 	// Set the next node to point to this node if it exists
 	if (linkedList->head) {
@@ -234,54 +204,41 @@ void LinkedList_pushFront(LinkedList* linkedList, const void* item) {
 
 	// Increment length
 	linkedList->length++;
+
+	// Return the node data
+	return node->data;
 }
 
 void LinkedList_popFront(LinkedList* linkedList) {
-	// Throw a fatal error if the LinkedList is a nullptr
-	COLLECTIONS_FATAL_IF(!linkedList,
-		COLLECTIONS_ERR_FAILED_POP COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_LINKED_LIST, COLLECTIONS_ERR_LINKED_LIST);
-
-	// Throw a fatal error if the LinkedList has no items
-	COLLECTIONS_FATAL_IF(linkedList->length == 0,
-		COLLECTIONS_ERR_FAILED_POP COLLECTIONS_ERR_POP_EMPTY,
-		COLLECTIONS_ERR_LINKED_LIST, COLLECTIONS_ERR_LINKED_LIST);
-
-	// Set the next node to be the head
-	Node* node = linkedList->head;
-	linkedList->head = node->next;
-
-	// Remove references to the removed node
-	if (linkedList->head) {
-		linkedList->head->previous = nullptr;
-	} else {
-		linkedList->tail = nullptr;
+	// Return if the LinkedList is a nullptr
+	if (!linkedList) {
+		return;
 	}
 
-	// Release the node and its data
-	Memory_free(node->data);
-	Memory_free(node);
+	// Return if the LinkedList has no items
+	if (linkedList->length == 0) {
+		return;
+	}
 
-	// Decrement length
-	linkedList->length--;
+	// Remove the first node
+	Node* node = linkedList->head;
+	removeNode(linkedList, node);
 }
 
-void LinkedList_pushBack(LinkedList* linkedList, const void* item) {
-	// Throw a fatal error if the LinkedList is a nullptr
-	COLLECTIONS_FATAL_IF(!linkedList,
-		COLLECTIONS_ERR_FAILED_PUSH COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_LINKED_LIST, COLLECTIONS_ERR_LINKED_LIST);
+void* LinkedList_pushBack(LinkedList* linkedList, const void* item) {
+	// Return a nullptr if the LinkedList is a nullptr
+	if (!linkedList) {
+		return nullptr;
+	}
 
-	// Throw a fatal error if the item is a nullptr
-	COLLECTIONS_FATAL_IF(!item,
-		COLLECTIONS_ERR_FAILED_PUSH COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_LINKED_LIST, "Item");
+	// Return a nullptr if the item is a nullptr
+	if (!item) {
+		return nullptr;
+	}
 
 	// Create the node
-	Node* node = createNode(item, linkedList->itemSize);
-	COLLECTIONS_FATAL_IF(!node,
-		COLLECTIONS_ERR_FAILED_PUSH COLLECTIONS_ERR_MALLOC_FAIL,
-		COLLECTIONS_ERR_LINKED_LIST, "node");
+	Node* node = createNode(linkedList, item);
+	if (!node) { return nullptr; }
 	node->previous = linkedList->tail;
 
 	// Set the next node to point to this node if it exists
@@ -296,53 +253,42 @@ void LinkedList_pushBack(LinkedList* linkedList, const void* item) {
 
 	// Increment length
 	linkedList->length++;
+
+	// Return the node data
+	return node->data;
 }
 
 void LinkedList_popBack(LinkedList* linkedList) {
-	// Throw a fatal error if the LinkedList is a nullptr
-	COLLECTIONS_FATAL_IF(!linkedList,
-		COLLECTIONS_ERR_FAILED_POP COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_LINKED_LIST, COLLECTIONS_ERR_LINKED_LIST);
-
-	// Throw a fatal error if the LinkedList has no items
-	COLLECTIONS_FATAL_IF(linkedList->length == 0,
-		COLLECTIONS_ERR_FAILED_POP COLLECTIONS_ERR_POP_EMPTY,
-		COLLECTIONS_ERR_LINKED_LIST, COLLECTIONS_ERR_LINKED_LIST);
-
-	// Set the next node to be the head
-	Node* node = linkedList->tail;
-	linkedList->tail = node->previous;
-
-	// Remove references to the removed node
-	if (linkedList->tail) {
-		linkedList->tail->next = nullptr;
-	} else {
-		linkedList->head = nullptr;
+	// Return if the LinkedList is a nullptr
+	if (!linkedList) {
+		return;
 	}
 
-	// Release the node and its data
-	Memory_free(node->data);
-	Memory_free(node);
+	// Return if the LinkedList has no items
+	if (linkedList->length == 0) {
+		return;
+	}
 
-	// Decrement length
-	linkedList->length--;
+	// Remove the last node
+	Node* node = linkedList->tail;
+	removeNode(linkedList, node);
 }
 
-void* LinkedList_find(const LinkedList* linkedList, const void* key, const CollectionsComparisonFn compare) {
-	// Throw a fatal error if the LinkedList is a nullptr
-	COLLECTIONS_FATAL_IF(!linkedList,
-		COLLECTIONS_ERR_FAILED_FIND COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_LINKED_LIST, COLLECTIONS_ERR_LINKED_LIST);
+void* LinkedList_find(LinkedList* linkedList, const void* key, const LinkedListComparisonFn compare) {
+	// Return if the LinkedList is a nullptr
+	if (!linkedList) {
+		return nullptr;
+	}
 
-	// Throw a fatal error if the key is a nullptr
-	COLLECTIONS_FATAL_IF(!key,
-		COLLECTIONS_ERR_FAILED_FIND COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_LINKED_LIST, "Key");
+	// Return if the key is a nullptr
+	if (!key) {
+		return nullptr;
+	}
 
-	// Throw a fatal error if the compare function is a nullptr
-	COLLECTIONS_FATAL_IF(!compare,
-		COLLECTIONS_ERR_FAILED_FIND COLLECTIONS_ERR_NULLPTR,
-		COLLECTIONS_ERR_LINKED_LIST, "Compare function");
+	// Return if the compare function is a nullptr
+	if (!compare) {
+		return nullptr;
+	}
 
 	// Iterate through the list
 	const Node* current = linkedList->head;
@@ -357,22 +303,73 @@ void* LinkedList_find(const LinkedList* linkedList, const void* key, const Colle
 	return nullptr;
 }
 
-Node* createNode(const void* item, const size_t itemSize) {
+LinkedListIterator LinkedList_begin(LinkedList* linkedList) {
+	return (LinkedListIterator) {
+		.linkedList = linkedList,
+		.current = linkedList ? linkedList->head : nullptr,
+		.previous = nullptr
+	};
+}
+
+bool LinkedListIterator_hasNext(LinkedListIterator* linkedListIterator) {
+	// Return false if the LinkedListIterator is null
+	if (!linkedListIterator) {
+		return false;
+	}
+
+	// Return true if the current node is not null
+	return linkedListIterator->current;
+}
+
+void* LinkedListIterator_next(LinkedListIterator* linkedListIterator) {
+	// Return null if the iterator or current node is null
+	if (!linkedListIterator || !linkedListIterator->current) {
+		return nullptr;
+	}
+
+	// Set the current node to the previous and the next node to the current
+	linkedListIterator->previous = linkedListIterator->current;
+	linkedListIterator->current = linkedListIterator->current->next;
+
+	// Return the previous data
+	return linkedListIterator->previous->data;
+}
+
+void LinkedListIterator_remove(LinkedListIterator* linkedListIterator) {
+	// Return if the iterator is null
+	if (!linkedListIterator | !linkedListIterator->linkedList) {
+		return;
+	}
+
+	// Return if the previous node is null
+	if (!linkedListIterator->previous) {
+		return;
+	}
+
+	// Remove the node from the linked list
+	Node* node = linkedListIterator->previous;
+	removeNode(linkedListIterator->linkedList, node);
+}
+
+static Node* createNode(const LinkedList* linkedList, const void* item) {
+	assert(linkedList);
+	assert(item);
+
 	// Allocate memory for the node
-	Node* node = Memory_malloc(sizeof(Node));
+	Node* node = Memory_malloc(sizeof(*node));
 	if (!node) {
 		return nullptr;
 	}
 
 	// Allocate memory for the node data
-	node->data = Memory_malloc(itemSize);
+	node->data = Memory_malloc(linkedList->itemSize);
 	if (!node->data) {
 		Memory_free(node);
 		return nullptr;
 	}
 
 	// Copy the item into the node data
-	Memory_copy(node->data, item, itemSize);
+	Memory_copy(node->data, item, linkedList->itemSize);
 
 	// Set the node's next and previous nodes to a nullptr
 	node->next = nullptr;
@@ -382,7 +379,10 @@ Node* createNode(const void* item, const size_t itemSize) {
 	return node;
 }
 
-Node* getNode(const LinkedList* linkedList, const size_t index) {
+static Node* getNode(const LinkedList* linkedList, const size_t index) {
+	assert(linkedList);
+	assert(index < linkedList->length);
+
 	// Iterate through the list until index is reached
 	Node* current;
 	if (index < linkedList->length / 2) {
@@ -399,4 +399,30 @@ Node* getNode(const LinkedList* linkedList, const size_t index) {
 
 	// Return the result
 	return current;
+}
+
+void removeNode(LinkedList* linkedList, Node* node) {
+	assert(linkedList);
+	assert(node);
+
+	// Set the previous node to point to the next node
+	if (linkedList->head != node) {
+		node->previous->next = node->next;
+	} else {
+		linkedList->head = node->next;
+	}
+
+	// Set the next node to point to the previous
+	if (linkedList->tail != node) {
+		node->next->previous = node->previous;
+	} else {
+		linkedList->tail = node->previous;
+	}
+
+	// Release the node and its data
+	Memory_free(node->data);
+	Memory_free(node);
+
+	// Decrement length
+	linkedList->length--;
 }

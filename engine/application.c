@@ -134,7 +134,7 @@ void setDefaultSubsystemProperties() {
 
 void init() {
     // Initialize the logger
-    Logger_init(LOGGER_LOG_LEVEL_DEBUG, appState.name, appState.versionString);
+    Logger_init(LOGGER_LOG_LEVEL_FATAL, appState.name, appState.versionString);
 
     // Initialize the memory allocator
     Memory_init();

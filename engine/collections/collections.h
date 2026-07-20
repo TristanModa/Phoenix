@@ -2,7 +2,7 @@
 #define ENGINE_COLLECTIONS_H
 
 #include "arrayList.h"
-#include "collectionsCommon.h"
+#include "hashMap.h"
 #include "linkedList.h"
 
 #endif //ENGINE_COLLECTIONS_H
