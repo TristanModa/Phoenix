@@ -9,15 +9,17 @@ static Node* createNode(const LinkedList* linkedList, const void* item);
 static Node* getNode(const LinkedList* linkedList, size_t index);
 static void removeNode(LinkedList* linkedList, Node* node);
 
-LinkedList* LinkedList_create(const size_t itemSize) {
-	// Return a nullptr if the item size is zero
+LinkedList* LinkedList_create(const size_t itemSize, CollectionsItemDestructorFn itemDestructor) {
+	// Return null if the item size is zero
 	if (itemSize == 0) {
+		Logger_error("Failed to create LinkedList: Item size cannot be 0.");
 		return nullptr;
 	}
 
 	// Allocate memory for the LinkedList
 	LinkedList* linkedList = Memory_malloc(sizeof(*linkedList));
 	if (!linkedList) {
+		Logger_error("Failed to create LinkedList: Memory allocation failed for LinkedList instance.");
 		return nullptr;
 	}
 
@@ -26,13 +28,15 @@ LinkedList* LinkedList_create(const size_t itemSize) {
 	linkedList->itemSize = itemSize;
 	linkedList->head = nullptr;
 	linkedList->tail = nullptr;
+	linkedList->itemDestructor = itemDestructor;
 
 	return linkedList;
 }
 
 void LinkedList_destroy(LinkedList* linkedList) {
-	// Return if the LinkedList is a nullptr
+	// Return if the LinkedList is null
 	if (!linkedList) {
+		Logger_error("Failed to destroy LinkedList: LinkedList is null.");
 		return;
 	}
 
@@ -42,8 +46,9 @@ void LinkedList_destroy(LinkedList* linkedList) {
 }
 
 size_t LinkedList_getLength(const LinkedList* linkedList) {
-	// Return 0 if the LinkedList is a nullptr
+	// Return 0 if the LinkedList is null
 	if (!linkedList) {
+		Logger_error("Failed to get length of LinkedList: LinkedList is null.");
 		return 0;
 	}
 
@@ -52,8 +57,9 @@ size_t LinkedList_getLength(const LinkedList* linkedList) {
 }
 
 void LinkedList_clear(LinkedList* linkedList) {
-	// Return if the LinkedList is a nullptr
+	// Return if the LinkedList is null
 	if (!linkedList) {
+		Logger_error("Failed to clear LinkedList: LinkedList is null.");
 		return;
 	}
 
@@ -61,6 +67,9 @@ void LinkedList_clear(LinkedList* linkedList) {
 	Node* current = linkedList->head;
 	while (current) {
 		Node* next = current->next;
+		if (linkedList->itemDestructor) {
+			linkedList->itemDestructor(current->data);
+		}
 		Memory_free(current->data);
 		Memory_free(current);
 		current = next;
@@ -72,35 +81,60 @@ void LinkedList_clear(LinkedList* linkedList) {
 	linkedList->length = 0;
 }
 
-void* LinkedList_insert(LinkedList* linkedList, const void* item, const size_t index) {
-	// Return if the LinkedList is a nullptr
+void* LinkedList_getItem(LinkedList* linkedList, size_t index) {
+	// Return if the LinkedList is null
 	if (!linkedList) {
+		Logger_error("Failed to get item from LinkedList: LinkedList is null.");
 		return nullptr;
-	}
-
-	// Return if the item is a nullptr
-	if (!item) {
-		return nullptr;
-	}
-
-	// Push front the item if it should be inserted at the start of the list
-	if (index == 0) {
-		return LinkedList_pushFront(linkedList, item);
-	}
-
-	// Push back the item if it should be inserted at the end of the list
-	if (index == linkedList->length) {
-		return LinkedList_pushBack(linkedList, item);
 	}
 
 	// Return if the index is out of bounds
 	if (index >= linkedList->length) {
+		Logger_error(
+			"Failed to get item from LinkedList: Index %zu is out of bounds for LinkedList of length %zu.",
+			index, linkedList->length);
+		return nullptr;
+	}
+
+	// Return the node data
+	const Node* node = getNode(linkedList, index);
+	return node->data;
+}
+
+void* LinkedList_insertItem(LinkedList* linkedList, const void* item, const size_t index) {
+	// Return null if the LinkedList is null
+	if (!linkedList) {
+		Logger_error("Failed to insert item to LinkedList: LinkedList is null.");
+		return nullptr;
+	}
+
+	// Return if the item is null
+	if (!item) {
+		Logger_error("Failed to insert item to LinkedList: Item is null.");
+		return nullptr;
+	}
+
+	// Return if the index is out of bounds
+	if (index > linkedList->length) {
+		Logger_error(
+			"Failed to insert item to LinkedList: Index %zu is out of bounds for LinkedList of length %zu.",
+			index, linkedList->length);
 		return nullptr;
 	}
 
 	// Get the next and previous nodes
-	Node* next = getNode(linkedList, index);
-	Node* previous = next->previous;
+	Node* next;
+	Node* previous;
+	if (linkedList->length == 0) {
+		next = nullptr;
+		previous = nullptr;
+	} else if (index != linkedList->length) {
+		next = getNode(linkedList, index);
+		previous = next->previous;
+	} else {
+		previous = getNode(linkedList, index - 1);
+		next = previous->next;
+	}
 
 	// Create the node to insert
 	Node* node = createNode(linkedList, item);
@@ -108,9 +142,19 @@ void* LinkedList_insert(LinkedList* linkedList, const void* item, const size_t i
 	node->next = next;
 	node->previous = previous;
 
-	// Set the next and previous nodes to point to this node
-	next->previous = node;
-	previous->next = node;
+	// Set the next node to point to this node
+	if (node->next) {
+		node->next->previous = node;
+	} else {
+		linkedList->tail = node;
+	}
+
+	// Set the previous node to point to this node
+	if (node->previous) {
+		node->previous->next = node;
+	} else {
+		linkedList->head = node;
+	}
 
 	// Increment length
 	linkedList->length++;
@@ -119,239 +163,186 @@ void* LinkedList_insert(LinkedList* linkedList, const void* item, const size_t i
 	return node->data;
 }
 
-void LinkedList_remove(LinkedList* linkedList, const size_t index) {
-	// Return if the LinkedList is a nullptr
+void* LinkedList_removeItem(LinkedList* linkedList, size_t index) {
+	// Return null if the LinkedList is null
 	if (!linkedList) {
+		Logger_error("Failed to remove item from LinkedList: LinkedList is null.");
+		return nullptr;
+	}
+	
+	// Return null if the index is out of bounds
+	if (index >= linkedList->length) {
+		Logger_error(
+			"Failed to remove item from LinkedList: Index %zu is out of bounds for LinkedList of length %zu.",
+			index, linkedList->length);
+		return nullptr;
+	}
+	
+	// Get the node at the index
+	Node* node = getNode(linkedList, index);
+
+	// Copy the item to a new memory location
+	void* item = Memory_malloc(linkedList->itemSize);
+	if (!item) {
+		Logger_error("Failed to remove item from LinkedList: Memory allocation failed for removed item.");
+		return nullptr;
+	}
+	Memory_copy(item, node->data, linkedList->itemSize);
+
+	// Remove the node
+	removeNode(linkedList, node);
+
+	// Decrement the length of the LinkedList
+	linkedList->length--;
+
+	// Return the item
+	return item;
+}
+
+void LinkedList_destroyItem(LinkedList* linkedList, size_t index) {
+	// Return if the LinkedList is null
+	if (!linkedList) {
+		Logger_error("Failed to destroy LinkedList item: LinkedList is null.");
 		return;
 	}
 
 	// Return if the index is out of bounds
-	if (index <= linkedList->length) {
+	if (index >= linkedList->length) {
+		Logger_error(
+			"Failed to destroy LinkedList item: Index %zu is out of bounds for LinkedList of length %zu.",
+			index, linkedList->length);
 		return;
-	}
-
-	// Remove the node
-	Node* node = getNode(linkedList, index);
-	removeNode(linkedList, node);
-}
-
-void* LinkedList_getItem(LinkedList* linkedList, const size_t index) {
-	// Return a nullptr if the LinkedList is a nullptr
-	if (!linkedList) {
-		return nullptr;
 	}
 
 	// Get the node
 	Node* node = getNode(linkedList, index);
-	if (!node) {
-		return nullptr;
+
+	// Get the item and call its destructor if it exists
+	if (linkedList->itemDestructor) {
+		void* item = node->data;
+		linkedList->itemDestructor(item);
 	}
 
-	// Return the node data
-	return node->data;
+	// Remove the node
+	removeNode(linkedList, node);
 }
 
-void* LinkedList_setItem(LinkedList* linkedList, const size_t index, const void* item) {
-	// Return if the LinkedList is a nullptr
+void* LinkedList_replaceItem(LinkedList *linkedList, const void* newItem, size_t index) {
+	// Return if the LinkedList is null
 	if (!linkedList) {
+		Logger_error("Failed to replace LinkedList item: LinkedList is null.");
 		return nullptr;
 	}
 
-	// Return if the item is a nullptr
-	if (!item) {
+	// Return if the item is null
+	if (!newItem) {
+		Logger_error("Failed to replace LinkedList item: Item is null.");
 		return nullptr;
 	}
 
-	// Get the node to set the value of
+	// Return if the index is out of bounds
+	if (index >= linkedList->length) {
+		Logger_error(
+			"Failed to replace LinkedList item: Index %zu is out of bounds for LinkedList of length %zu.",
+			index, linkedList->length);
+		return nullptr;
+	}
+
+	// Get the node to replace
 	Node* node = getNode(linkedList, index);
-	if (!node) {
+
+	// Copy the old item to a new memory location
+	void* oldItem = Memory_malloc(linkedList->itemSize);
+	if (!oldItem) {
+		Logger_error("Failed to replace LinkedList item: Memory allocation failed for removed item.");
 		return nullptr;
 	}
+	Memory_copy(oldItem, node->data, linkedList->itemSize);
 
-	// Copy the data to this node
-	Memory_copy(node->data, item, linkedList->itemSize);
+	// Copy the new item into the node
+	Memory_copy(node->data, newItem, linkedList->itemSize);
 
-	// Return the node data
-	return node->data;
-}
-
-void* LinkedList_pushFront(LinkedList* linkedList, const void* item) {
-	// Return a nullptr if the LinkedList is a nullptr
-	if (!linkedList) {
-		return nullptr;
-	}
-
-	// Return a nullptr if the item is a nullptr
-	if (!item) {
-		return nullptr;
-	}
-
-	// Create the node
-	Node* node = createNode(linkedList, item);
-	if (!node) {
-		return nullptr;
-	}
-
-	// Set the next node to point to this node if it exists
-	if (linkedList->head) {
-		linkedList->head->previous = node;
-	} else {
-		linkedList->tail = node;
-	}
-
-	// Set this node as the head of the list
-	linkedList->head = node;
-
-	// Increment length
-	linkedList->length++;
-
-	// Return the node data
-	return node->data;
-}
-
-void LinkedList_popFront(LinkedList* linkedList) {
-	// Return if the LinkedList is a nullptr
-	if (!linkedList) {
-		return;
-	}
-
-	// Return if the LinkedList has no items
-	if (linkedList->length == 0) {
-		return;
-	}
-
-	// Remove the first node
-	Node* node = linkedList->head;
-	removeNode(linkedList, node);
-}
-
-void* LinkedList_pushBack(LinkedList* linkedList, const void* item) {
-	// Return a nullptr if the LinkedList is a nullptr
-	if (!linkedList) {
-		return nullptr;
-	}
-
-	// Return a nullptr if the item is a nullptr
-	if (!item) {
-		return nullptr;
-	}
-
-	// Create the node
-	Node* node = createNode(linkedList, item);
-	if (!node) { return nullptr; }
-	node->previous = linkedList->tail;
-
-	// Set the next node to point to this node if it exists
-	if (linkedList->tail) {
-		linkedList->tail->next = node;
-	} else {
-		linkedList->head = node;
-	}
-
-	// Set this node as the tail of the list
-	linkedList->tail = node;
-
-	// Increment length
-	linkedList->length++;
-
-	// Return the node data
-	return node->data;
-}
-
-void LinkedList_popBack(LinkedList* linkedList) {
-	// Return if the LinkedList is a nullptr
-	if (!linkedList) {
-		return;
-	}
-
-	// Return if the LinkedList has no items
-	if (linkedList->length == 0) {
-		return;
-	}
-
-	// Remove the last node
-	Node* node = linkedList->tail;
-	removeNode(linkedList, node);
-}
-
-void* LinkedList_find(LinkedList* linkedList, const void* key, const LinkedListComparisonFn compare) {
-	// Return if the LinkedList is a nullptr
-	if (!linkedList) {
-		return nullptr;
-	}
-
-	// Return if the key is a nullptr
-	if (!key) {
-		return nullptr;
-	}
-
-	// Return if the compare function is a nullptr
-	if (!compare) {
-		return nullptr;
-	}
-
-	// Iterate through the list
-	const Node* current = linkedList->head;
-	while (current) {
-		if (compare(current->data, key) == 0) {
-			return current->data;
-		}
-		current = current->next;
-	}
-
-	// Return nullptr if no comparison was successful
-	return nullptr;
+	// Return the old item
+	return oldItem;
 }
 
 LinkedListIterator LinkedList_begin(LinkedList* linkedList) {
-	return (LinkedListIterator) {
+	// Return an empty iterator if the LinkedList is null
+	if (!linkedList) {
+		Logger_error("Failed to create LinkedList iterator: LinkedList is null.");
+		return (LinkedListIterator){};
+	}
+
+	// Return an iterator starting at the beginning of the LinkedList
+	return (LinkedListIterator){
 		.linkedList = linkedList,
-		.current = linkedList ? linkedList->head : nullptr,
-		.previous = nullptr
+		.next = linkedList->head,
+		.previous = nullptr,
 	};
 }
 
-bool LinkedListIterator_hasNext(LinkedListIterator* linkedListIterator) {
-	// Return false if the LinkedListIterator is null
-	if (!linkedListIterator) {
-		return false;
+LinkedListIterator LinkedList_end(LinkedList* linkedList) {
+	// Return an empty iterator if the LinkedList is null
+	if (!linkedList) {
+		Logger_error("Failed to create LinkedList iterator: LinkedList is null.");
+		return (LinkedListIterator){};
 	}
 
-	// Return true if the current node is not null
-	return linkedListIterator->current;
+	// Return an iterator starting at the end of the LinkedList
+	return (LinkedListIterator){
+		.linkedList = linkedList,
+		.next = nullptr,
+		.previous = linkedList->tail,
+	};
 }
 
-void* LinkedListIterator_next(LinkedListIterator* linkedListIterator) {
-	// Return null if the iterator or current node is null
-	if (!linkedListIterator || !linkedListIterator->current) {
+void* LinkedListIterator_next(LinkedListIterator* iterator) {
+	// Return null if the iterator is null
+	if (!iterator) {
+		Logger_error("Failed to advance LinkedListIterator: LinkedListIterator is null.");
 		return nullptr;
 	}
 
-	// Set the current node to the previous and the next node to the current
-	linkedListIterator->previous = linkedListIterator->current;
-	linkedListIterator->current = linkedListIterator->current->next;
-
-	// Return the previous data
-	return linkedListIterator->previous->data;
-}
-
-void LinkedListIterator_remove(LinkedListIterator* linkedListIterator) {
-	// Return if the iterator is null
-	if (!linkedListIterator | !linkedListIterator->linkedList) {
-		return;
+	// Return null if the next node is null
+	if (!iterator->next) {
+		return nullptr;
 	}
 
-	// Return if the previous node is null
-	if (!linkedListIterator->previous) {
-		return;
-	}
+	// Get the next node
+	Node* node = iterator->next;
 
-	// Remove the node from the linked list
-	Node* node = linkedListIterator->previous;
-	removeNode(linkedListIterator->linkedList, node);
+	// Set the new next and previous nodes
+	iterator->previous = node;
+	iterator->next = node->next;
+
+	// Return the node
+	return node->data;
 }
 
-static Node* createNode(const LinkedList* linkedList, const void* item) {
+void* LinkedListIterator_previous(LinkedListIterator* iterator) {
+	// Return null if the iterator is null
+	if (!iterator) {
+		Logger_error("Failed to regress LinkedListIterator: LinkedListIterator is null.");
+		return nullptr;
+	}
+
+	// Return null if the previous node is null
+	if (!iterator->previous) {
+		return nullptr;
+	}
+
+	// Get the previous node
+	Node* node = iterator->previous;
+
+	// Set the new previous and next nodes
+	iterator->next = node;
+	iterator->previous = node->previous;
+
+	// Return the node
+	return node->data;
+}
+
+Node* createNode(const LinkedList* linkedList, const void* item) {
 	assert(linkedList);
 	assert(item);
 
@@ -371,7 +362,7 @@ static Node* createNode(const LinkedList* linkedList, const void* item) {
 	// Copy the item into the node data
 	Memory_copy(node->data, item, linkedList->itemSize);
 
-	// Set the node's next and previous nodes to a nullptr
+	// Set the node's next and previous nodes to null
 	node->next = nullptr;
 	node->previous = nullptr;
 
@@ -379,7 +370,7 @@ static Node* createNode(const LinkedList* linkedList, const void* item) {
 	return node;
 }
 
-static Node* getNode(const LinkedList* linkedList, const size_t index) {
+Node* getNode(const LinkedList* linkedList, const size_t index) {
 	assert(linkedList);
 	assert(index < linkedList->length);
 

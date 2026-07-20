@@ -31,8 +31,7 @@ add_library(VulfEngine SHARED
 		gfx/colors.h
 		gfx/renderer.h
 		gfx/renderer.c
-		collections/hashMap.h
-		collections/hashMap.c
+		collections/common.h
 )
 
 target_include_directories(VulfEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
