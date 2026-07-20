@@ -1,31 +1,26 @@
 include(FetchContent)
 
-# Get BoxFort
-FetchContent_Declare(
-        boxfort
-        GIT_REPOSITORY https://github.com/Snaipe/BoxFort
-        GIT_TAG        v0.1.5
-)
-FetchContent_MakeAvailable(boxfort)
+enable_testing()
 
-# Build BoxFort
-file(GLOB_RECURSE BOX_FORT_SRC_FILES CONFIGURE_DEPENDS "${boxfort_SOURCE_DIR}/src/*.c")
-add_library(BoxFort ${BOX_FORT_SRC_FILES})
-target_include_directories(BoxFort PUBLIC "${boxfort_SOURCE_DIR}/include")
+if(WIN32)
+    message(STATUS "Skipping tests: Criterion is not supported on Windows.")
+    return()
+endif()
 
 # Get Criterion
 FetchContent_Declare(
         criterion
-        GIT_REPOSITORY https://github.com/snaipe/criterion
-        GIT_TAG        v2.4.3
+        URL         https://github.com/Snaipe/Criterion/releases/download/v2.4.3/criterion-2.4.3-linux-x86_64.tar.xz
+        URL_HASH    SHA256=f1b3dd5186783dcdd63433c1facd3b4d6af5244a151057370b53bdda80f16121
 )
 FetchContent_MakeAvailable(criterion)
 
-# Build Criterion
-file(GLOB_RECURSE CRITERION_SRC_FILES CONFIGURE_DEPENDS "${criterion_SOURCE_DIR}/src/*.c")
-add_library(Criterion ${CRITERION_SRC_FILES})
-target_link_libraries(Criterion PRIVATE BoxFort)
-target_include_directories(Criterion PUBLIC "${criterion_SOURCE_DIR}/include")
+# Add Criterion
+add_library(Criterion SHARED IMPORTED)
+set_target_properties(Criterion PROPERTIES
+        IMPORTED_LOCATION "${criterion_SOURCE_DIR}/lib/libcriterion.so"
+)
+target_include_directories(Criterion INTERFACE "${criterion_SOURCE_DIR}/include")
 
 # Add subdirectories
 add_subdirectory(collections)
