@@ -11,8 +11,17 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(sdl3)
 
+# Get Mimalloc
+FetchContent_Declare(
+		mimalloc
+		GIT_REPOSITORY https://github.com/microsoft/mimalloc.git
+		GIT_TAG v3.4.3
+)
+FetchContent_MakeAvailable(mimalloc)
+
 # Create the vendor interface
 add_library(vendor INTERFACE)
 target_link_libraries(vendor INTERFACE
         SDL3::SDL3
+		mimalloc-static
 )

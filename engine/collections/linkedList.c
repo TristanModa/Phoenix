@@ -187,7 +187,7 @@ void* LinkedList_removeItem(LinkedList* linkedList, size_t index) {
 		Logger_error("Failed to remove item from LinkedList: Memory allocation failed for removed item.");
 		return nullptr;
 	}
-	Memory_copy(item, node->data, linkedList->itemSize);
+	memcpy(item, node->data, linkedList->itemSize);
 
 	// Remove the node
 	removeNode(linkedList, node);
@@ -257,10 +257,10 @@ void* LinkedList_replaceItem(LinkedList *linkedList, const void* newItem, size_t
 		Logger_error("Failed to replace LinkedList item: Memory allocation failed for removed item.");
 		return nullptr;
 	}
-	Memory_copy(oldItem, node->data, linkedList->itemSize);
+	memcpy(oldItem, node->data, linkedList->itemSize);
 
 	// Copy the new item into the node
-	Memory_copy(node->data, newItem, linkedList->itemSize);
+	memcpy(node->data, newItem, linkedList->itemSize);
 
 	// Return the old item
 	return oldItem;
@@ -360,7 +360,7 @@ Node* createNode(const LinkedList* linkedList, const void* item) {
 	}
 
 	// Copy the item into the node data
-	Memory_copy(node->data, item, linkedList->itemSize);
+	memcpy(node->data, item, linkedList->itemSize);
 
 	// Set the node's next and previous nodes to null
 	node->next = nullptr;

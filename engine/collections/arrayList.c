@@ -188,14 +188,14 @@ void* ArrayList_insertItem(ArrayList* arrayList, const void* item, const size_t 
 	if (itemsToMove > 0) {
 		const u8* src = (u8*)arrayList->items + index * arrayList->itemSize;
 		u8* dest = (u8*)arrayList->items + (index + 1) * arrayList->itemSize;
-		Memory_move(dest, src, itemsToMove * arrayList->itemSize);
+		memmove(dest, src, itemsToMove * arrayList->itemSize);
 	}
-
-	// Set the value of the item
-	setItem(arrayList, item, index);
 
 	// Increment the length of the ArrayList
 	arrayList->length++;
+
+	// Set the value of the item
+	setItem(arrayList, item, index);
 
 	// Return the inserted item
 	return getItem(arrayList, index);
@@ -222,14 +222,14 @@ void* ArrayList_removeItem(ArrayList* arrayList, const size_t index) {
 		Logger_error("Failed to remove item from ArrayList: Memory allocation failed for removed item.");
 		return nullptr;
 	}
-	Memory_copy(item, getItem(arrayList, index), arrayList->itemSize);
+	memcpy(item, getItem(arrayList, index), arrayList->itemSize);
 
 	// Move all items after the removed item back one index
 	const size_t itemsToMove = arrayList->length - index - 1;
 	if (itemsToMove > 0) {
 		const u8* src = getItem(arrayList, index + 1);
 		u8* dest = (u8*)arrayList->items + index * arrayList->itemSize;
-		Memory_move(dest, src, itemsToMove * arrayList->itemSize);
+		memmove(dest, src, itemsToMove * arrayList->itemSize);
 	}
 
 	// Decrement the length of the ArrayList
@@ -265,7 +265,7 @@ void ArrayList_destroyItem(ArrayList *arrayList, const size_t index) {
 	if (itemsToMove > 0) {
 		const u8* src = getItem(arrayList, index + 1);
 		u8* dest = (u8*)arrayList->items + index * arrayList->itemSize;
-		Memory_move(dest, src, itemsToMove * arrayList->itemSize);
+		memmove(dest, src, itemsToMove * arrayList->itemSize);
 	}
 
 	// Decrement the length of the ArrayList
@@ -299,42 +299,13 @@ void* ArrayList_replaceItem(ArrayList *arrayList, const void* newItem, const siz
 		Logger_error("Failed to replace ArrayList item: Memory allocation failed for removed item.");
 		return nullptr;
 	}
-	Memory_copy(oldItem, getItem(arrayList, index), arrayList->itemSize);
+	memcpy(oldItem, getItem(arrayList, index), arrayList->itemSize);
 
 	// Insert the new item
 	setItem(arrayList, newItem, index);
 
 	// Return the old item
 	return oldItem;
-}
-
-void* ArrayList_setItem(ArrayList* arrayList, const size_t index, const void* item) {
-	// Return if the ArrayList is null
-	if (!arrayList) {
-		Logger_error("Failed to set ArrayList item: ArrayList is null.");
-		return nullptr;
-	}
-
-	// Return if the item is null
-	if (!item) {
-		Logger_error("Failed to set ArrayList item: Item is null.");
-		return nullptr;
-	}
-
-	// Return if the index is out of bounds
-	if (index >= arrayList->length) {
-		Logger_error(
-			"Failed to set ArrayList item:  Index %zu is out of bounds for ArrayList of length %zu.",
-			index, arrayList->length);
-		return nullptr;
-	}
-
-	// Copy the item to the ArrayList
-	u8* dest = getItem(arrayList, index);
-	Memory_copy(dest, item, arrayList->itemSize);
-
-	// Return the item
-	return dest;
 }
 
 void ArrayList_forEach(ArrayList* arrayList, void(*action)(void*)) {
@@ -451,16 +422,16 @@ void* ArrayListIterator_previous(ArrayListIterator* iterator) {
 	return ArrayList_getItem(iterator->arrayList, iterator->currentIndex);
 }
 
-void* getItem(ArrayList *arrayList, const size_t index) {
+void* getItem(ArrayList* arrayList, const size_t index) {
 	assert(arrayList);
 	assert(index < arrayList->length);
 	return (u8*)arrayList->items + index * arrayList->itemSize;
 }
 
-void setItem(ArrayList *arrayList, const void* item, const size_t index) {
+void setItem(ArrayList* arrayList, const void* item, const size_t index) {
 	assert(arrayList);
 	assert(item);
 	assert(index < arrayList->length);
 	u8* dest = (u8*)arrayList->items + index * arrayList->itemSize;
-	Memory_copy(dest, item, arrayList->itemSize);
+	memcpy(dest, item, arrayList->itemSize);
 }

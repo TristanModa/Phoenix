@@ -1,5 +1,6 @@
 #include "application.h"
 
+#include <malloc.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -97,18 +98,6 @@ void setDefaultSubsystemProperties() {
     };
     Logger_setProperties(&loggerProperties);
 
-    // Set the default memory properties
-    const MemoryProperties memoryProperties = {
-        .malloc = malloc,
-        .calloc = calloc,
-        .realloc = realloc,
-        .free = free,
-        .compare = memcmp,
-        .copy = memcpy,
-        .move = memmove
-    };
-    Memory_setProperties(&memoryProperties);
-
     // Set the default time properties
     const TimeProperties timeProperties = {
         .targetTicksPerSecond = 50,
@@ -134,7 +123,7 @@ void setDefaultSubsystemProperties() {
 
 void init() {
     // Initialize the logger
-    Logger_init(LOGGER_LOG_LEVEL_FATAL, appState.name, appState.versionString);
+    Logger_init(LOGGER_LOG_LEVEL_DEBUG, appState.name, appState.versionString);
 
     // Initialize the memory allocator
     Memory_init();
