@@ -130,7 +130,7 @@ void init() {
     Logger_info("Initializing SDL...");
     Logger_pushIndent();
     SDL_SetMemoryFunctions(Memory_malloc, Memory_calloc, Memory_realloc, Memory_free);
-    SDL_SetAppMetadata(appState.name, appState.versionString, nullptr);
+    SDL_SetAppMetadata(appState.name, appState.versionString, appState.identifier);
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         Logger_fatal("Failed to initialize SDL: %s", SDL_GetError());
         exit(EXIT_FAILURE);

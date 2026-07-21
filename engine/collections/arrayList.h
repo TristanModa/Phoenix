@@ -62,15 +62,15 @@ ArrayList* ArrayList_create(size_t itemSize, size_t capacity, CollectionsItemDes
 void ArrayList_destroy(ArrayList* arrayList);
 
 /**
- * Gets the length of an ArrayList
+ * Gets the length of an ArrayList, or zero on failure
  * @param arrayList The ArrayList to get the length of
- * @return The length of the ArrayList
+ * @return The length of the ArrayList, or zero on failure
  */
 size_t ArrayList_getLength(const ArrayList* arrayList);
 /**
- * Gets the capacity of an ArrayList
+ * Gets the capacity of an ArrayList, or zero on failure
  * @param arrayList The ArrayList to get the capacity of
- * @return The capacity of the ArrayList
+ * @return The capacity of the ArrayList, or zero on failure
  */
 size_t ArrayList_getCapacity(const ArrayList* arrayList);
 

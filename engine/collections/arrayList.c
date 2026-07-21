@@ -48,11 +48,7 @@ void ArrayList_destroy(ArrayList* arrayList) {
 
 	// Call the item destructor on each item if it is not null
 	if (arrayList->itemDestructor) {
-		ArrayListIterator it = ArrayList_begin(arrayList);
-		void* item;
-		while ((item = ArrayListIterator_next(&it))) {
-			arrayList->itemDestructor(item);
-		}
+		ArrayList_forEach(arrayList, arrayList->itemDestructor);
 	}
 
 	// Release the ArrayList and its items

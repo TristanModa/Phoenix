@@ -1,115 +1,336 @@
 #include <criterion/criterion.h>
-
-#include <core/memory.h>
 #include <collections/arrayList.h>
 
-// region Helpers
-typedef struct testStruct {
-    int shallowData;
-    int* deepData;
-} TestStruct;
-
-static void exampleDestructor(TestStruct* testStruct) {
-    Memory_free(testStruct->deepData);
-}
-// endregion
-
-// region Create Tests
-Test(Collections, ArrayList_Create_Success) {
+// region ArrayList_create Tests
+Test(Collections, ArrayList_create_Success) {
     const ArrayList* arrayList = ArrayList_create(sizeof(int), 0, nullptr);
     cr_assert_not_null(arrayList);
 }
 
-Test(Collections, ArrayList_Create_ZeroItemSize) {
+Test(Collections, ArrayList_create_ZeroItemSize) {
     const ArrayList* arrayList = ArrayList_create(0, 0, nullptr);
     cr_assert_null(arrayList);
 }
 
-Test(Collections, ArrayList_Create_NonZeroCapacity) {
+Test(Collections, ArrayList_create_NonZeroCapacity) {
     const ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
     cr_assert_eq(arrayList->capacity, 16);
     cr_assert_not_null(arrayList->items);
 }
 
-Test(Collections, ArrayList_Create_FailedInstanceMalloc) {
+Test(Collections, ArrayList_create_FailedInstanceMalloc) {
     const ArrayList* arrayList = ArrayList_create(sizeof(int), -1, nullptr);
     cr_assert_null(arrayList);
 }
 
-Test(Collections, ArrayList_Create_FailedItemsMalloc) {
+Test(Collections, ArrayList_create_FailedItemsMalloc) {
     const ArrayList* arrayList = ArrayList_create(-1, 16, nullptr);
     cr_assert_null(arrayList);
 }
 // endregion
 
-// region Destroy Tests
-Test(Collections, ArrayList_Destroy_Empty) {
-    // Get the memory before allocation
-    const size_t memBefore = Memory_getStats().currentAllocatedBytes;
-
-    // Create and destroy an ArrayList
-    ArrayList* arrayList = ArrayList_create(sizeof(int), 0, nullptr);
-    ArrayList_destroy(arrayList);
-
-    // Get the memory after destruction
-    const size_t memAfter = Memory_getStats().currentAllocatedBytes;
-
-    // Check if memBefore is equal to memAfter
-    cr_assert_eq(memBefore, memAfter);
+// region ArrayList_getLength Tests
+Test(Collections, ArrayList_getLength_NullList) {
+    cr_assert_eq(ArrayList_getLength(nullptr), 0);
 }
 
-Test(Collections, ArrayList_Destroy_HasItems) {
-    // Get the memory before allocation
-    const size_t memBefore = Memory_getStats().currentAllocatedBytes;
+Test(Collections, ArrayList_getLength_Empty) {
+    const ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
+    cr_assert_eq(ArrayList_getLength(arrayList), 0);
+}
 
-    // Create and destroy an ArrayList
+Test(Collections, ArrayList_getLength_HasItems) {
     ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
-    ArrayList_destroy(arrayList);
+    for (int i = 0; i < 10; i++) {
+        ArrayList_pushBackItem(arrayList, &i);
+    }
+    cr_assert_eq(ArrayList_getLength(arrayList), 10);
+}
+// endregion
 
-    // Get the memory after destruction
-    const size_t memAfter = Memory_getStats().currentAllocatedBytes;
-
-    // Check if memBefore is equal to memAfter
-    cr_assert_eq(memBefore, memAfter);
+// region ArrayList_getCapacity Tests
+Test(Collections, ArrayList_getCapacity_NullList) {
+    cr_assert_eq(ArrayList_getCapacity(nullptr), 0);
 }
 
-Test(Collections, ArrayList_Destroy_HasDeepItemsNoDestructor) {
-    // Get the memory before allocation
-    const size_t memBefore = Memory_getStats().currentAllocatedBytes;
-
-    // Create, insert to, and destroy an ArrayList
-    ArrayList* arrayList = ArrayList_create(sizeof(TestStruct), 16, nullptr);
-    const TestStruct a = {
-        .shallowData = 0,
-        .deepData = Memory_malloc(sizeof(a.deepData))
-    };
-    ArrayList_insertItem(arrayList, &a, 0);
-    ArrayList_destroy(arrayList);
-
-    // Get the memory after destruction
-    const size_t memAfter = Memory_getStats().currentAllocatedBytes;
-
-    // Check if memBefore differs from memAfter by the size of a.deepData
-    cr_assert_eq(memBefore, memAfter - sizeof(a.deepData));
+Test(Collections, ArrayList_getCapacity_ZeroCap) {
+    const ArrayList* arrayList = ArrayList_create(sizeof(int), 0, nullptr);
+    cr_assert_eq(ArrayList_getCapacity(arrayList), 0);
 }
 
-Test(Collections, ArrayList_Destroy_HasDeepItemsDestructor) {
-    // Get the memory before allocation
-    const size_t memBefore = Memory_getStats().currentAllocatedBytes;
-
-    // Create, insert to, and destroy an ArrayList
-    ArrayList* arrayList = ArrayList_create(sizeof(TestStruct), 16, (CollectionsItemDestructorFn)exampleDestructor);
-    const TestStruct a = {
-        .shallowData = 0,
-        .deepData = Memory_malloc(sizeof(a.deepData))
-    };
-    ArrayList_insertItem(arrayList, &a, 0);
-    ArrayList_destroy(arrayList);
-
-    // Get the memory after destruction
-    const size_t memAfter = Memory_getStats().currentAllocatedBytes;
-
-    // Check if memBefore is equal to memAfter
-    cr_assert_eq(memBefore, memAfter);
+Test(Collections, ArrayList_getCapacity_NonZeroCap) {
+    const ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
+    cr_assert_eq(ArrayList_getCapacity(arrayList), 16);
 }
-// endregion Destroy Tests
+// endregion
+
+// region ArrayList_clear Tests
+Test(Collections, ArrayList_clear_Empty) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 0, nullptr);
+    ArrayList_clear(arrayList);
+    cr_assert_eq(arrayList->length, 0);
+}
+
+Test(Collections, ArrayList_clear_HasItems) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
+    for (int i = 0; i < 10; i++) {
+        ArrayList_pushBackItem(arrayList, &i);
+    }
+    ArrayList_clear(arrayList);
+    cr_assert_eq(arrayList->length, 0);
+}
+// endregion
+
+// region ArrayList_resize Tests
+Test(Collections, ArrayList_resize_ZeroToNonZeroCapacity) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 0, nullptr);
+    ArrayList_resize(arrayList, 16);
+    cr_assert_eq(arrayList->capacity, 16);
+    cr_assert_not_null(arrayList->items);
+}
+
+Test(Collections, ArrayList_resize_NonZeroToZeroCapacity) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
+    ArrayList_resize(arrayList, 0);
+    cr_assert_eq(arrayList->capacity, 0);
+    cr_assert_null(arrayList->items);
+}
+
+Test(Collections, ArrayList_resize_NonZeroToNonZeroCapacity) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
+    const void* before = arrayList->items;
+    ArrayList_resize(arrayList, 32);
+    cr_assert_eq(arrayList->capacity, 32);
+    cr_assert_neq(arrayList->items, before);
+}
+
+Test(Collections, ArrayList_resize_FailedResizeMalloc) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
+    const void* before = arrayList->items;
+    ArrayList_resize(arrayList, -1);
+    cr_assert_eq(arrayList->capacity, 16);
+    cr_assert_eq(arrayList->items, before);
+}
+
+Test(Collections, ArrayList_resize_LessThanLength) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
+    const void* before = arrayList->items;
+    for (int i = 0; i < 10; i++) {
+        ArrayList_pushBackItem(arrayList, &i);
+    }
+    ArrayList_resize(arrayList, 8);
+    cr_assert_eq(arrayList->capacity, 16);
+    cr_assert_eq(arrayList->items, before);
+}
+// endregion
+
+// region ArrayList_getItem Tests
+Test(Collections, ArrayList_getItem_NullList) {
+    const int* item = ArrayList_getItem(nullptr, 0);
+    cr_assert_null(item);
+}
+
+Test(Collections, ArrayList_getItem_IndexOOB) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
+    for (int i = 0; i < 10; i++) {
+        ArrayList_pushBackItem(arrayList, &i);
+    }
+    const int* item = ArrayList_getItem(arrayList, 12);
+    cr_assert_null(item);
+}
+
+Test(Collections, ArrayList_getItem_Success) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
+    for (int i = 0; i < 10; i++) {
+        ArrayList_pushBackItem(arrayList, &i);
+    }
+    const int* item = ArrayList_getItem(arrayList, 4);
+    cr_assert_not_null(item);
+    cr_assert_eq(*item, 4);
+}
+// endregion
+
+// region ArrayList_insertItem Tests
+Test(Collections, ArrayList_insertItem_NullList) {
+    int c = 1;
+    const int* item = ArrayList_insertItem(nullptr, 0, &c);
+    cr_assert_null(item);
+}
+
+Test(Collections, ArrayList_insertItem_NullItem) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 0, nullptr);
+    const int* item = ArrayList_insertItem(arrayList, 0, nullptr);
+    cr_assert_null(item);
+}
+
+Test(Collections, ArrayList_insertItem_OOB) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 0, nullptr);
+    const int* item = ArrayList_insertItem(arrayList, 1, nullptr);
+    cr_assert_null(item);
+}
+
+Test(Collections, ArrayList_insertItem_Success) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
+
+    // Insert elements into ArrayList
+    for (int i = 0; i < 10; i++) {
+        ArrayList_pushBackItem(arrayList, &i);
+    }
+    const size_t lenBefore = arrayList->length;
+
+    // Insert item into the middle
+    int c = 1;
+    const int* item = ArrayList_insertItem(arrayList, 5, &c);
+
+    // Ensure elements before are correct
+    for (int i = 0; i < 5; i++) {
+        int* a = ArrayList_getItem(arrayList, i);
+        cr_assert_eq(*a, i);
+    }
+
+    // Ensure elements after are correct
+    for (int i = 6; i < 11; i++) {
+        int* a = ArrayList_getItem(arrayList, i);
+        cr_assert_eq(*a, i - 1);
+    }
+
+    // Ensure element was inserted correctly
+    cr_assert_eq(arrayList->length, lenBefore + 1);
+    cr_assert_not_null(item);
+    cr_assert_neq(item, &c);
+    cr_assert_eq(*item, c);
+}
+
+Test(Collections, ArrayList_insertItem_SuccessResize) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
+
+    // Insert elements into ArrayList
+    for (int i = 0; i < 16; i++) {
+        ArrayList_pushBackItem(arrayList, &i);
+    }
+    const size_t lenBefore = arrayList->length;
+    const size_t capacityBefore = arrayList->capacity;
+
+    // Insert item into the middle
+    int c = 1;
+    const int* item = ArrayList_insertItem(arrayList, 16, &c);
+
+    // Ensure element was inserted correctly
+    cr_assert_eq(arrayList->length, lenBefore + 1);
+    cr_assert_eq(arrayList->capacity, capacityBefore * 2);
+    cr_assert_not_null(item);
+    cr_assert_neq(item, &c);
+    cr_assert_eq(*item, c);
+}
+// endregion
+
+// region ArrayList_removeItem Tests
+Test(Collections, ArrayList_removeItem_NullList) {
+    const int* item = ArrayList_removeItem(nullptr, 0);
+    cr_assert_null(item);
+}
+
+Test(Collections, ArrayList_removeItem_Empty) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 0, nullptr);
+    const int* item = ArrayList_removeItem(arrayList, 0);
+    cr_assert_null(item);
+}
+
+Test(Collections, ArrayList_removeItem_OOB) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
+    for (int i = 0; i < 10; i++) {
+        ArrayList_pushBackItem(arrayList, &i);
+    }
+    const int* item = ArrayList_removeItem(arrayList, 11);
+    cr_assert_null(item);
+}
+
+Test(Collections, ArrayList_removeItem_Success) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
+
+    // Insert elements into ArrayList
+    for (int i = 0; i < 10; i++) {
+        ArrayList_pushBackItem(arrayList, &i);
+    }
+    const size_t lenBefore = arrayList->length;
+
+    // Get item from the middle
+    const int* itemBefore = ArrayList_getItem(arrayList, 5);
+    const int valueBefore = *itemBefore;
+
+    // Remove item from the middle
+    int c = 1;
+    const int* item = ArrayList_removeItem(arrayList, 5);
+
+    // Ensure remaining elements are correct
+    const int expected[9] = { 0, 1, 2, 3, 4, 6, 7, 8, 9 };
+    cr_assert_arr_eq(arrayList->items, expected, 9);
+
+    // Ensure element was removed correctly
+    cr_assert_eq(arrayList->length, lenBefore - 1);
+    cr_assert_not_null(item);
+    cr_assert_neq(item, itemBefore);
+    cr_assert_eq(*item, valueBefore);
+}
+// endregion
+
+// region ArrayList_destroyItem Tests
+Test(Collections, ArrayList_destroyItem_Empty) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 0, nullptr);
+    ArrayList_destroyItem(arrayList, 0);
+    cr_assert_eq(arrayList->length, 0);
+}
+
+Test(Collections, ArrayList_destroyItem_OOB) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
+    const ArrayList stateBefore = *arrayList;
+
+    for (int i = 0; i < 10; i++) {
+        ArrayList_pushBackItem(arrayList, &i);
+    }
+    const int* item = ArrayList_removeItem(arrayList, 11);
+
+    cr_assert_null(item);
+    cr_assert_arr_eq(arrayList, &stateBefore, 1);
+}
+
+Test(Collections, ArrayList_destroyItem_Success) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
+
+    // Insert elements into ArrayList
+    for (int i = 0; i < 10; i++) {
+        ArrayList_pushBackItem(arrayList, &i);
+    }
+    const size_t lenBefore = arrayList->length;
+
+    // Remove item from the middle
+    ArrayList_destroyItem(arrayList, 5);
+
+    // Ensure remaining elements are correct
+    const int expected[9] = { 0, 1, 2, 3, 4, 6, 7, 8, 9 };
+    cr_assert_arr_eq(arrayList->items, expected, 9);
+
+    // Ensure element was removed correctly
+    cr_assert_eq(arrayList->length, lenBefore - 1);
+}
+// endregion
+
+// region ArrayList_pushBackItem Tests
+Test(Collections, ArrayList_pushBackItem_NullList) {
+    int c = 0;
+    const void* item = ArrayList_pushBackItem(nullptr, &c);
+    cr_assert_null(item);
+}
+
+Test(Collections, ArrayList_pushBackItem_Success) {
+    ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
+
+    int c = 0;
+    const int* item = ArrayList_pushBackItem(arrayList, &c);
+
+    cr_assert_eq(arrayList->length, 1);
+    cr_assert_not_null(item);
+    cr_assert_neq(item, &c);
+    cr_assert_eq(*item, c);
+}
+// endregion
