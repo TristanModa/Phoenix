@@ -104,7 +104,7 @@ void LinkedList_clear(LinkedList* linkedList);
 void* LinkedList_getItem(LinkedList* linkedList, size_t index);
 
 /**
- * Inserts a new item into a LinkedList at the specified index.
+ * Inserts a new item to a LinkedList at the specified index.
  * The item data is shallow copied into the LinkedLists's internal storage.
  * Inserting an item invalidates all existing iterators.
  * @param linkedList The LinkedList to insert to
@@ -123,22 +123,36 @@ void* LinkedList_insertItem(LinkedList* linkedList, const void* item, size_t ind
  */
 void* LinkedList_removeItem(LinkedList* linkedList, size_t index);
 /**
- * Destroys and removes an item from the specified index of a LinkedList.
+ * Removes an item from the specified index of a LinkedList and calls its destructor.
  * Destroying an item invalidates all existing iterators.
  * @param linkedList The LinkedList to remove from
  * @param index The index to remove the item from
  */
 void LinkedList_destroyItem(LinkedList* linkedList, size_t index);
+
 /**
- * Replaces the item at the specified index of a LinkedList with a new item.
- * The item data is shallow copied into the LinkedList's internal storage.
- * @param linkedList The LinkedList of the item to replace
- * @param newItem The new item to replace the old item with
- * @param index The index of the item to replace
- * @return A pointer to the old item or null on failure.
+ * Inserts a new item to the end of a LinkedList.
+ * The item data is shallow copied into the LinkedLists's internal storage.
+ * Inserting an item invalidates all existing iterators.
+ * @param linkedList The LinkedList to insert to
+ * @param item The item to insert
+ * @return A pointer to the newly inserted item in the LinkedList, or null on failure
+ */
+void* LinkedList_pushBackItem(LinkedList* linkedList, const void* item);
+/**
+ * Removes the item at the end of a LinkedList.
+ * Removing an item invalidates all existing iterators.
+ * @param linkedList The LinkedList to remove from
+ * @return A pointer to the removed item, or null on failure.
  * The caller owns the returned object and is responsible for freeing it.
  */
-void* LinkedList_replaceItem(LinkedList* linkedList, const void* newItem, size_t index);
+void* LinkedList_popBackItem(LinkedList* linkedList);
+/**
+ * Removes the item at the end a LinkedList and calls its destructor.
+ * Destroying an item invalidates all existing iterators.
+ * @param linkedList The LinkedList to remove from
+ */
+void LinkedList_destroyBackItem(LinkedList* linkedList);
 
 /**
  * Executes an action on each item of a LinkedList
@@ -180,5 +194,26 @@ void* LinkedListIterator_next(LinkedListIterator* iterator);
  * @return The previous item in the LinkedList, or null if no previous item exists
  */
 void* LinkedListIterator_previous(LinkedListIterator* iterator);
+
+/**
+ * Inserts a new item to a LinkedList at the position of a LinkedListIterator.
+ * The item data is shallow copied into the LinkedList's internal storage.
+ * @param iterator The iterator to insert at
+ * @param item The item to insert
+ * @return A pointer to the newly inserted item in the LinkedList, or null on failure
+ */
+void* LinkedListIterator_insertItem(LinkedListIterator* iterator, void* item);
+/**
+ * Removes an item from a LinkedList at the position of a LinkedListIterator.
+ * @param iterator The iterator to remove at
+ * @return A pointer to the removed item, or null on failure.
+ * The caller owns the returned object and is responsible for freeing it.
+ */
+void* LinkedListIterator_removeItem(LinkedListIterator* iterator);
+/**
+ * Removes an item from a LinkedList at the position of a LinkedListIterator and calls its destructor.
+ * @param iterator The LinkedList to delete at
+ */
+void LinkedListIterator_destroyItem(LinkedListIterator* iterator);
 
 #endif //ENGINE_COLLECTIONS_LINKEDLIST_H

@@ -91,7 +91,7 @@ void* LinkedList_getItem(LinkedList* linkedList, size_t index) {
 	// Return if the index is out of bounds
 	if (index >= linkedList->length) {
 		Logger_error(
-			"Failed to get item from LinkedList: Index %zu is out of bounds for LinkedList of length %zu.",
+			"Failed to get item from LinkedList: Index %zu is out of bounds for LinkedList of length %zu",
 			index, linkedList->length);
 		return nullptr;
 	}
@@ -117,7 +117,7 @@ void* LinkedList_insertItem(LinkedList* linkedList, const void* item, const size
 	// Return if the index is out of bounds
 	if (index > linkedList->length) {
 		Logger_error(
-			"Failed to insert item to LinkedList: Index %zu is out of bounds for LinkedList of length %zu.",
+			"Failed to insert item to LinkedList: Index %zu is out of bounds for LinkedList of length %zu",
 			index, linkedList->length);
 		return nullptr;
 	}
@@ -138,7 +138,10 @@ void* LinkedList_insertItem(LinkedList* linkedList, const void* item, const size
 
 	// Create the node to insert
 	Node* node = createNode(linkedList, item);
-	if (!node) { return nullptr; }
+	if (!node) {
+		Logger_error("Failed to insert item to LinkedList: Memory allocation for LinkedList node failed");
+		return nullptr;
+	}
 	node->next = next;
 	node->previous = previous;
 
@@ -173,7 +176,7 @@ void* LinkedList_removeItem(LinkedList* linkedList, size_t index) {
 	// Return null if the index is out of bounds
 	if (index >= linkedList->length) {
 		Logger_error(
-			"Failed to remove item from LinkedList: Index %zu is out of bounds for LinkedList of length %zu.",
+			"Failed to remove item from LinkedList: Index %zu is out of bounds for LinkedList of length %zu",
 			index, linkedList->length);
 		return nullptr;
 	}
@@ -209,7 +212,7 @@ void LinkedList_destroyItem(LinkedList* linkedList, size_t index) {
 	// Return if the index is out of bounds
 	if (index >= linkedList->length) {
 		Logger_error(
-			"Failed to destroy LinkedList item: Index %zu is out of bounds for LinkedList of length %zu.",
+			"Failed to destroy LinkedList item: Index %zu is out of bounds for LinkedList of length %zu",
 			index, linkedList->length);
 		return;
 	}
@@ -243,7 +246,7 @@ void* LinkedList_replaceItem(LinkedList *linkedList, const void* newItem, size_t
 	// Return if the index is out of bounds
 	if (index >= linkedList->length) {
 		Logger_error(
-			"Failed to replace LinkedList item: Index %zu is out of bounds for LinkedList of length %zu.",
+			"Failed to replace LinkedList item: Index %zu is out of bounds for LinkedList of length %zu",
 			index, linkedList->length);
 		return nullptr;
 	}
@@ -264,6 +267,93 @@ void* LinkedList_replaceItem(LinkedList *linkedList, const void* newItem, size_t
 
 	// Return the old item
 	return oldItem;
+}
+
+void* LinkedList_pushBackItem(LinkedList* linkedList, const void* item) {
+	// Return null if the LinkedList is null
+	if (!linkedList) {
+		Logger_error("Failed to push back item to LinkedList: LinkedList is null");
+		return nullptr;
+	}
+
+	// Insert the item at the end of the LinkedList
+	return LinkedList_insertItem(linkedList, item, linkedList->length);
+}
+
+void* LinkedList_popBackItem(LinkedList* linkedList) {
+	// Return null if the LinkedList is null
+	if (!linkedList) {
+		Logger_error("Failed to pop back item from LinkedList: LinkedList is null");
+		return nullptr;
+	}
+
+	// Remove the item at the end of the LinkedList
+	return LinkedList_removeItem(linkedList, linkedList->length - 1);
+}
+
+void LinkedList_destroyBackItem(LinkedList* linkedList) {
+	// Return if the LinkedList is null
+	if (!linkedList) {
+		Logger_error("Failed to destroy back item of LinkedList: LinkedList is null");
+		return;
+	}
+
+	// Destroy the item at the end of the LinkedList
+	LinkedList_destroyItem(linkedList, linkedList->length - 1);
+}
+
+void LinkedList_forEach(LinkedList* linkedList, CollectionsForEachActionFn action) {
+	// Return if the LinkedList is null
+	if (!linkedList) {
+		Logger_error("Failed to execute forEach on LinkedList: LinkedList is null");
+		return;
+	}
+
+	// Return if the action is null
+	if (!action) {
+		Logger_error("Failed to execute forEach on LinkedList: Action is null");
+		return;
+	}
+
+	// Iterate through the LinkedList
+	LinkedListIterator it = LinkedList_begin(linkedList);
+	void* item;
+	while ((item = LinkedListIterator_next(&it))) {
+		action(item);
+	}
+}
+
+void* LinkedList_find(LinkedList* linkedList, const void* key, CollectionsCompareFn compare) {
+	// Return if the LinkedList is a nullptr
+	if (!linkedList) {
+		Logger_error("Failed find LinkedList item: LinkedList is null");
+		return nullptr;
+	}
+
+	// Return if the key is a nullptr
+	if (!key) {
+		Logger_error("Failed find LinkedList item: Key is null");
+		return nullptr;
+	}
+
+	// Return if the compare function is a nullptr
+	if (!compare) {
+		Logger_error("Failed find LinkedList item: Compare function is null");
+		return nullptr;
+	}
+
+	// Iterate through the LinkedList
+	LinkedListIterator it = LinkedList_begin(linkedList);
+	void* item;
+	while ((item = LinkedListIterator_next(&it))) {
+		// Return the item if it matches the key
+		if (compare(item, key) == 0) {
+			return item;
+		}
+	}
+
+	// Return a nullptr if no match was found
+	return nullptr;
 }
 
 LinkedListIterator LinkedList_begin(LinkedList* linkedList) {
@@ -340,6 +430,79 @@ void* LinkedListIterator_previous(LinkedListIterator* iterator) {
 
 	// Return the node
 	return node->data;
+}
+
+void* LinkedListIterator_insertItem(LinkedListIterator* iterator, void* item) {
+	// Return null if the iterator is null
+	if (!iterator) {
+		Logger_error(
+			"Failed to perform LinkedList item insertion with LinkedListIterator: "
+			"LinkedListIterator is null");
+		return nullptr;
+	}
+
+	// Return null if the item is null
+	if (!item) {
+		Logger_error(
+			"Failed to perform LinkedList item insertion with LinkedListIterator: "
+			"Item is null");
+		return nullptr;
+	}
+
+	// Create the node
+	Node* node = createNode(iterator->linkedList, item);
+	if (!node) {
+		Logger_error(
+			"Failed to perform LinkedList item insertion with LinkedListIterator: "
+			"Memory allocation failed for LinkedList node");
+		return nullptr;
+	}
+	node->next = iterator->next;
+	node->previous = iterator->previous;
+
+	// Set the next node to point to this node
+	if (node->next) {
+		node->next->previous = node;
+	} else {
+		iterator->linkedList->tail = node;
+	}
+
+	// Set the previous node to point to this node
+	if (node->previous) {
+		node->previous->next = node;
+	} else {
+		iterator->linkedList->head = node;
+	}
+
+	// Increment length
+	iterator->linkedList->length++;
+
+	// Return the node data
+	return node->data;
+}
+
+void* LinkedListIterator_removeItem(LinkedListIterator* iterator) {
+	// Return null if the iterator is null
+	if (!iterator) {
+		Logger_error(
+			"Failed to perform LinkedList item removal with LinkedListIterator: "
+			"LinkedListIterator is null");
+		return nullptr;
+	}
+
+
+}
+
+void LinkedListIterator_destroyItem(LinkedListIterator *iterator) {
+	// Return if the iterator is null
+	if (!iterator) {
+		Logger_error(
+			"Failed to perform LinkedList item destruction with LinkedListIterator: "
+			"LinkedListIterator is null");
+		return;
+	}
+
+	
 }
 
 Node* createNode(const LinkedList* linkedList, const void* item) {

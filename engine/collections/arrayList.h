@@ -95,15 +95,15 @@ void ArrayList_resize(ArrayList* arrayList, size_t capacity);
 void* ArrayList_getItem(ArrayList* arrayList, size_t index);
 
 /**
- * Inserts a new item into an ArrayList at the specified index.
+ * Inserts a new item to an ArrayList at the specified index.
  * The item data is shallow copied into the ArrayList's internal storage.
  * Inserting an item invalidates all existing iterators.
  * @param arrayList The ArrayList to insert to
- * @param item The item to insert
  * @param index The index to insert the item at
+ * @param item The item to insert
  * @return A pointer to the newly inserted item in the ArrayList, or null on failure
  */
-void* ArrayList_insertItem(ArrayList* arrayList, const void* item, size_t index);
+void* ArrayList_insertItem(ArrayList* arrayList, size_t index, void* item);
 /**
  * Removes an item from the specified index of an ArrayList.
  * Removing an item invalidates all existing iterators.
@@ -114,22 +114,36 @@ void* ArrayList_insertItem(ArrayList* arrayList, const void* item, size_t index)
  */
 void* ArrayList_removeItem(ArrayList* arrayList, size_t index);
 /**
- * Destroys and removes an item from the specified index of an ArrayList.
+ * Removes an item from the specified index of an ArrayList and calls its destructor.
  * Destroying an item invalidates all existing iterators.
  * @param arrayList The ArrayList to remove from
  * @param index The index to remove the item from
  */
 void ArrayList_destroyItem(ArrayList* arrayList, size_t index);
+
 /**
- * Replaces the item at the specified index of an ArrayList with a new item.
+ * Inserts a new item to the end of an ArrayList.
  * The item data is shallow copied into the ArrayList's internal storage.
- * @param arrayList The ArrayList of the item to replace
- * @param newItem The new item to replace the old item with
- * @param index The index of the item to replace
- * @return A pointer to the old item or null on failure.
+ * Inserting an item invalidates all existing iterators.
+ * @param arrayList The ArrayList to insert to
+ * @param item The item to insert
+ * @return A pointer to the newly inserted item in the ArrayList, or null on failure
+ */
+void* ArrayList_pushBackItem(ArrayList* arrayList, void* item);
+/**
+ * Removes the item at the end of an ArrayList.
+ * Removing an item invalidates all existing iterators.
+ * @param arrayList The ArrayList to remove from
+ * @return A pointer to the removed item, or null on failure.
  * The caller owns the returned object and is responsible for freeing it.
  */
-void* ArrayList_replaceItem(ArrayList* arrayList, const void* newItem, size_t index);
+void* ArrayList_popBackItem(ArrayList* arrayList);
+/**
+ * Removes the item at the end of an ArrayList and calls its destructor.
+ * Destroying an item invalidates all existing iterators.
+ * @param arrayList The ArrayList to remove from
+ */
+void ArrayList_destroyBackItem(ArrayList* arrayList);
 
 /**
  * Executes an action on each item of an ArrayList
@@ -171,5 +185,26 @@ void* ArrayListIterator_next(ArrayListIterator* iterator);
  * @return The previous item in the ArrayList, or null if no previous item exists
  */
 void* ArrayListIterator_previous(ArrayListIterator* iterator);
+
+/**
+ * Inserts a new item to an ArrayList at the position of an ArrayListIterator.
+ * The item data is shallow copied into the ArrayList's internal storage.
+ * @param iterator The iterator to insert at
+ * @param item The item to insert
+ * @return A pointer to the newly inserted item in the ArrayList, or null on failure
+ */
+void* ArrayListIterator_insertItem(ArrayListIterator* iterator, void* item);
+/**
+ * Removes an item from an ArrayList at the position of an ArrayListIterator.
+ * @param iterator The iterator to remove at
+ * @return A pointer to the removed item, or null on failure.
+ * The caller owns the returned object and is responsible for freeing it.
+ */
+void* ArrayListIterator_removeItem(ArrayListIterator* iterator);
+/**
+ * Removes an item from an ArrayList at the position of an ArrayListIterator and calls its destructor.
+ * @param iterator The ArrayList to delete at
+ */
+void ArrayListIterator_destroyItem(ArrayListIterator* iterator);
 
 #endif //ENGINE_COLLECTIONS_ARRAYLIST_H

@@ -89,7 +89,7 @@ Test(Collections, ArrayList_Destroy_HasDeepItemsNoDestructor) {
     // Get the memory after destruction
     const size_t memAfter = Memory_getStats().currentAllocatedBytes;
 
-    // Check if memBefore is equal to memAfter
+    // Check if memBefore differs from memAfter by the size of a.deepData
     cr_assert_eq(memBefore, memAfter - sizeof(a.deepData));
 }
 

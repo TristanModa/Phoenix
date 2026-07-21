@@ -112,7 +112,7 @@ void ArrayList_resize(ArrayList* arrayList, const size_t capacity) {
 	// Return if the new capacity is less than the length
 	if (capacity < arrayList->length) {
 		Logger_error(
-			"Failed to resize ArrayList: New capacity (%zu) is less than current length (%zu).",
+			"Failed to resize ArrayList: New capacity (%zu) is less than current length (%zu)",
 			capacity, arrayList->length);
 		return;
 	}
@@ -147,7 +147,7 @@ void* ArrayList_getItem(ArrayList* arrayList, const size_t index) {
 	// Return if the index is out of bounds
 	if (index >= arrayList->length) {
 		Logger_error(
-			"Failed to get item from ArrayList: Index %zu is out of bounds for ArrayList of length %zu.",
+			"Failed to get item from ArrayList: Index %zu is out of bounds for ArrayList of length %zu",
 			index, arrayList->length);
 		return nullptr;
 	}
@@ -156,7 +156,7 @@ void* ArrayList_getItem(ArrayList* arrayList, const size_t index) {
 	return getItem(arrayList, index);
 }
 
-void* ArrayList_insertItem(ArrayList* arrayList, const void* item, const size_t index) {
+void* ArrayList_insertItem(ArrayList* arrayList, const size_t index, void* item) {
 	// Return null if the ArrayList is null
 	if (!arrayList) {
 		Logger_error("Failed to insert item to ArrayList: ArrayList is null");
@@ -172,7 +172,7 @@ void* ArrayList_insertItem(ArrayList* arrayList, const void* item, const size_t 
 	// Return null if the index is out of bounds
 	if (index > arrayList->length) {
 		Logger_error(
-			"Failed to insert item to ArrayList: Index %zu is out of bounds for ArrayList of length %zu.",
+			"Failed to insert item to ArrayList: Index %zu is out of bounds for ArrayList of length %zu",
 			index, arrayList->length);
 		return nullptr;
 	}
@@ -211,7 +211,7 @@ void* ArrayList_removeItem(ArrayList* arrayList, const size_t index) {
 	// Return if the index is out of bounds
 	if (index >= arrayList->length) {
 		Logger_error(
-			"Failed to remove item from ArrayList: Index %zu is out of bounds for ArrayList of length %zu.",
+			"Failed to remove item from ArrayList: Index %zu is out of bounds for ArrayList of length %zu",
 			index, arrayList->length);
 		return nullptr;
 	}
@@ -239,7 +239,7 @@ void* ArrayList_removeItem(ArrayList* arrayList, const size_t index) {
 	return item;
 }
 
-void ArrayList_destroyItem(ArrayList *arrayList, const size_t index) {
+void ArrayList_destroyItem(ArrayList* arrayList, const size_t index) {
 	// Return if the ArrayList is null
 	if (!arrayList) {
 		Logger_error("Failed to destroy ArrayList item: ArrayList is null");
@@ -249,7 +249,7 @@ void ArrayList_destroyItem(ArrayList *arrayList, const size_t index) {
 	// Return if the index is out of bounds
 	if (index >= arrayList->length) {
 		Logger_error(
-			"Failed to destroy ArrayList item: Index %zu is out of bounds for ArrayList of length %zu.",
+			"Failed to destroy ArrayList item: Index %zu is out of bounds for ArrayList of length %zu",
 			index, arrayList->length);
 		return;
 	}
@@ -272,7 +272,40 @@ void ArrayList_destroyItem(ArrayList *arrayList, const size_t index) {
 	arrayList->length--;
 }
 
-void* ArrayList_replaceItem(ArrayList *arrayList, const void* newItem, const size_t index) {
+void* ArrayList_pushBackItem(ArrayList* arrayList, void* item) {
+	// Return null if the ArrayList is null
+	if (!arrayList) {
+		Logger_error("Failed to push back item to ArrayList: ArrayList is null");
+		return nullptr;
+	}
+
+	// Insert the item at the end of the ArrayList
+	return ArrayList_insertItem(arrayList, ArrayList_getLength(arrayList), item);
+}
+
+void* ArrayList_popBackItem(ArrayList* arrayList) {
+	// Return null if the ArrayList is null
+	if (!arrayList) {
+		Logger_error("Failed to pop back item from ArrayList: ArrayList is null");
+		return nullptr;
+	}
+
+	// Insert the item at the end of the ArrayList
+	return ArrayList_removeItem(arrayList, ArrayList_getLength(arrayList) - 1);
+}
+
+void ArrayList_destroyBackItem(ArrayList* arrayList) {
+	// Return null if the ArrayList is null
+	if (!arrayList) {
+		Logger_error("Failed to destroy back item of ArrayList: ArrayList is null");
+		return;
+	}
+
+	// Insert the item at the end of the ArrayList
+	ArrayList_destroyItem(arrayList, ArrayList_getLength(arrayList) - 1);
+}
+
+void* ArrayList_replaceItem(ArrayList* arrayList, const void* newItem, const size_t index) {
 	// Return if the ArrayList is null
 	if (!arrayList) {
 		Logger_error("Failed to replace ArrayList item: ArrayList is null");
@@ -288,7 +321,7 @@ void* ArrayList_replaceItem(ArrayList *arrayList, const void* newItem, const siz
 	// Return if the index is out of bounds
 	if (index >= arrayList->length) {
 		Logger_error(
-			"Failed to replace ArrayList item: Index %zu is out of bounds for ArrayList of length %zu.",
+			"Failed to replace ArrayList item: Index %zu is out of bounds for ArrayList of length %zu",
 			index, arrayList->length);
 		return nullptr;
 	}
@@ -308,7 +341,7 @@ void* ArrayList_replaceItem(ArrayList *arrayList, const void* newItem, const siz
 	return oldItem;
 }
 
-void ArrayList_forEach(ArrayList* arrayList, void(*action)(void*)) {
+void ArrayList_forEach(ArrayList* arrayList, CollectionsForEachActionFn action) {
 	// Return if the ArrayList is null
 	if (!arrayList) {
 		Logger_error("Failed to execute forEach on ArrayList: ArrayList is null");
@@ -392,7 +425,7 @@ void* ArrayListIterator_next(ArrayListIterator* iterator) {
 	}
 
 	// Return null if there is no next item
-	if (iterator->currentIndex + 1 >= iterator->arrayList->length) {
+	if (iterator->currentIndex >= iterator->arrayList->length - 1) {
 		return nullptr;
 	}
 
@@ -411,7 +444,7 @@ void* ArrayListIterator_previous(ArrayListIterator* iterator) {
 	}
 
 	// Return null if there is no previous item
-	if (iterator->currentIndex - 1 >= iterator->arrayList->length) {
+	if (iterator->currentIndex <= 0) {
 		return nullptr;
 	}
 
@@ -420,6 +453,51 @@ void* ArrayListIterator_previous(ArrayListIterator* iterator) {
 
 	// Return the item
 	return ArrayList_getItem(iterator->arrayList, iterator->currentIndex);
+}
+
+void* ArrayListIterator_insertItem(ArrayListIterator* iterator, void* item) {
+	// Return null if the iterator is null
+	if (!iterator) {
+		Logger_error(
+			"Failed to perform ArrayList item insertion with ArrayListIterator: "
+			"ArrayListIterator is null");
+		return nullptr;
+	}
+
+	// Insert the item into the ArrayList
+	void* insertedItem = ArrayList_insertItem(iterator->arrayList, iterator->currentIndex, item);
+
+	// Increment the current index of the iterator to avoid iterator invalidation
+	iterator->currentIndex++;
+
+	// Return the item
+	return insertedItem;
+}
+
+void* ArrayListIterator_removeItem(ArrayListIterator* iterator) {
+	// Return null if the iterator is null
+	if (!iterator) {
+		Logger_error(
+			"Failed to perform ArrayList item removal with ArrayListIterator: "
+			"ArrayListIterator is null");
+		return nullptr;
+	}
+
+	// Remove the item
+	return ArrayList_removeItem(iterator->arrayList, iterator->currentIndex);
+}
+
+void ArrayListIterator_destroyItem(ArrayListIterator* iterator) {
+	// Return if the iterator is null
+	if (!iterator) {
+		Logger_error(
+			"Failed to perform ArrayList item destruction with ArrayListIterator: "
+			"ArrayListIterator is null");
+		return;
+	}
+
+	// Destroy the item
+	ArrayList_destroyItem(iterator->arrayList, iterator->currentIndex);
 }
 
 void* getItem(ArrayList* arrayList, const size_t index) {
