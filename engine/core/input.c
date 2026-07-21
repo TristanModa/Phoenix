@@ -44,9 +44,12 @@ void Input_create() {
 
 void Input_destroy() {
     Logger_info("Destroying input subsystem...");
+    Logger_pushIndent();
 
     // Release associated resources
     Memory_free(inputState.buttons);
+
+    Logger_popIndent();
 }
 
 void Input_update() {

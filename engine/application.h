@@ -40,6 +40,10 @@ typedef struct applicationState {
      */
     const char* name;
     /**
+     * The identifier of the application in Reverse-DNS format (com.company.application)
+     */
+    const char* identifier;
+    /**
      * The version of the application
      */
     AppVersion version;
@@ -78,6 +82,7 @@ typedef struct applicationState {
 /**
  * Creates the application
  * @param name The name of the application
+ * @param identifier The identifier of the application in Reverse-DNS format (com.company.application)
  * @param version The version of the application
  * @param initCallback The application callback that will be called on initialization
  * @param destroyCallback The application callback that will be called on destruction
@@ -85,7 +90,7 @@ typedef struct applicationState {
  * @param tickCallback The application callback that will be called on tick
  * @param renderCallback The application callback that will be called on render
  */
-void Application_create(const char* name, AppVersion version, AppCallback initCallback, AppCallback destroyCallback,
+void Application_create(const char* name, const char* identifier, AppVersion version, AppCallback initCallback, AppCallback destroyCallback,
                         AppCallback updateCallback, AppCallback tickCallback, AppCallback renderCallback);
 
 /**

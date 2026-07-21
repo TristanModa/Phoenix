@@ -11,14 +11,14 @@ ArrayList* ArrayList_create(const size_t itemSize, const size_t capacity,
                             const CollectionsItemDestructorFn itemDestructor) {
 	// Return null if the item size is zero
 	if (itemSize == 0) {
-		Logger_error("Failed to create ArrayList: Item size cannot be 0.");
+		Logger_error("Failed to create ArrayList: Item size cannot be zero.");
 		return nullptr;
 	}
 
-	// Allocate memory for the ArrayList struct
+	// Allocate memory for the ArrayList instance
 	ArrayList* arrayList = Memory_malloc(sizeof(*arrayList));
 	if (!arrayList) {
-		Logger_error("Failed to create ArrayList: Memory allocation failed for ArrayList instance.");
+		Logger_error("Failed to create ArrayList: Memory allocation failed for ArrayList instance");
 		return nullptr;
 	}
 
@@ -28,10 +28,10 @@ ArrayList* ArrayList_create(const size_t itemSize, const size_t capacity,
 	arrayList->length = 0;
 	arrayList->itemDestructor = itemDestructor;
 
-	// Allocate memory for the ArrayList items
+	// Allocate memory for ArrayList items
 	arrayList->items = capacity != 0 ? Memory_malloc(itemSize * capacity) : nullptr;
 	if (!arrayList->items && capacity != 0) {
-		Logger_error("Failed to create ArrayList: Memory allocation failed for ArrayList items.");
+		Logger_error("Failed to create ArrayList: Memory allocation failed for ArrayList items");
 		Memory_free(arrayList);
 		return nullptr;
 	}
@@ -42,7 +42,7 @@ ArrayList* ArrayList_create(const size_t itemSize, const size_t capacity,
 void ArrayList_destroy(ArrayList* arrayList) {
 	// Return if the ArrayList is null
 	if (!arrayList) {
-		Logger_error("Failed to destroy ArrayList: ArrayList is null.");
+		Logger_error("Failed to destroy ArrayList: ArrayList is null");
 		return;
 	}
 
@@ -63,7 +63,7 @@ void ArrayList_destroy(ArrayList* arrayList) {
 size_t ArrayList_getLength(const ArrayList* arrayList) {
 	// Return 0 if the ArrayList is null
 	if (!arrayList) {
-		Logger_error("Failed to get length of ArrayList: ArrayList is null.");
+		Logger_error("Failed to get length of ArrayList: ArrayList is null");
 		return 0;
 	}
 
@@ -74,7 +74,7 @@ size_t ArrayList_getLength(const ArrayList* arrayList) {
 size_t ArrayList_getCapacity(const ArrayList* arrayList) {
 	// Return 0 if the ArrayList is null
 	if (!arrayList) {
-		Logger_error("Failed to get capacity of ArrayList: ArrayList is null.");
+		Logger_error("Failed to get capacity of ArrayList: ArrayList is null");
 		return 0;
 	}
 
@@ -85,7 +85,7 @@ size_t ArrayList_getCapacity(const ArrayList* arrayList) {
 void ArrayList_clear(ArrayList* arrayList) {
 	// Return if the ArrayList is null
 	if (!arrayList) {
-		Logger_error("Failed to clear ArrayList: ArrayList is null.");
+		Logger_error("Failed to clear ArrayList: ArrayList is null");
 		return;
 	}
 
@@ -105,7 +105,7 @@ void ArrayList_clear(ArrayList* arrayList) {
 void ArrayList_resize(ArrayList* arrayList, const size_t capacity) {
 	// Return if the ArrayList is null
 	if (!arrayList) {
-		Logger_error("Failed to resize ArrayList: ArrayList is null.");
+		Logger_error("Failed to resize ArrayList: ArrayList is null");
 		return;
 	}
 
@@ -128,7 +128,7 @@ void ArrayList_resize(ArrayList* arrayList, const size_t capacity) {
 	// Reallocate the ArrayList items
 	void* items = Memory_realloc(arrayList->items, arrayList->itemSize * capacity);
 	if (!items) {
-		Logger_error("Failed to resize ArrayList: Memory reallocation failed for ArrayList items.");
+		Logger_error("Failed to resize ArrayList: Memory reallocation failed for ArrayList items");
 		return;
 	}
 
@@ -140,7 +140,7 @@ void ArrayList_resize(ArrayList* arrayList, const size_t capacity) {
 void* ArrayList_getItem(ArrayList* arrayList, const size_t index) {
 	// Return if the ArrayList is null
 	if (!arrayList) {
-		Logger_error("Failed to get item from ArrayList: ArrayList is null.");
+		Logger_error("Failed to get item from ArrayList: ArrayList is null");
 		return nullptr;
 	}
 
@@ -159,13 +159,13 @@ void* ArrayList_getItem(ArrayList* arrayList, const size_t index) {
 void* ArrayList_insertItem(ArrayList* arrayList, const void* item, const size_t index) {
 	// Return null if the ArrayList is null
 	if (!arrayList) {
-		Logger_error("Failed to insert item to ArrayList: ArrayList is null.");
+		Logger_error("Failed to insert item to ArrayList: ArrayList is null");
 		return nullptr;
 	}
 
 	// Return null if the item is null
 	if (!item) {
-		Logger_error("Failed to insert item to ArrayList: Item is null.");
+		Logger_error("Failed to insert item to ArrayList: Item is null");
 		return nullptr;
 	}
 
@@ -204,7 +204,7 @@ void* ArrayList_insertItem(ArrayList* arrayList, const void* item, const size_t 
 void* ArrayList_removeItem(ArrayList* arrayList, const size_t index) {
 	// Return if the ArrayList is null
 	if (!arrayList) {
-		Logger_error("Failed to remove item from ArrayList: ArrayList is null.");
+		Logger_error("Failed to remove item from ArrayList: ArrayList is null");
 		return nullptr;
 	}
 
@@ -219,7 +219,7 @@ void* ArrayList_removeItem(ArrayList* arrayList, const size_t index) {
 	// Copy the item to a new memory location
 	void* item = Memory_malloc(arrayList->itemSize);
 	if (!item) {
-		Logger_error("Failed to remove item from ArrayList: Memory allocation failed for removed item.");
+		Logger_error("Failed to remove item from ArrayList: Memory allocation failed for removed item");
 		return nullptr;
 	}
 	memcpy(item, getItem(arrayList, index), arrayList->itemSize);
@@ -242,7 +242,7 @@ void* ArrayList_removeItem(ArrayList* arrayList, const size_t index) {
 void ArrayList_destroyItem(ArrayList *arrayList, const size_t index) {
 	// Return if the ArrayList is null
 	if (!arrayList) {
-		Logger_error("Failed to destroy ArrayList item: ArrayList is null.");
+		Logger_error("Failed to destroy ArrayList item: ArrayList is null");
 		return;
 	}
 
@@ -275,13 +275,13 @@ void ArrayList_destroyItem(ArrayList *arrayList, const size_t index) {
 void* ArrayList_replaceItem(ArrayList *arrayList, const void* newItem, const size_t index) {
 	// Return if the ArrayList is null
 	if (!arrayList) {
-		Logger_error("Failed to replace ArrayList item: ArrayList is null.");
+		Logger_error("Failed to replace ArrayList item: ArrayList is null");
 		return nullptr;
 	}
 
 	// Return if the item is null
 	if (!newItem) {
-		Logger_error("Failed to replace ArrayList item: Item is null.");
+		Logger_error("Failed to replace ArrayList item: Item is null");
 		return nullptr;
 	}
 
@@ -296,7 +296,7 @@ void* ArrayList_replaceItem(ArrayList *arrayList, const void* newItem, const siz
 	// Copy the old item to a new memory location
 	void* oldItem = Memory_malloc(arrayList->itemSize);
 	if (!oldItem) {
-		Logger_error("Failed to replace ArrayList item: Memory allocation failed for removed item.");
+		Logger_error("Failed to replace ArrayList item: Memory allocation failed for removed item");
 		return nullptr;
 	}
 	memcpy(oldItem, getItem(arrayList, index), arrayList->itemSize);
@@ -311,13 +311,13 @@ void* ArrayList_replaceItem(ArrayList *arrayList, const void* newItem, const siz
 void ArrayList_forEach(ArrayList* arrayList, void(*action)(void*)) {
 	// Return if the ArrayList is null
 	if (!arrayList) {
-		Logger_error("Failed to execute forEach on ArrayList: ArrayList is null.");
+		Logger_error("Failed to execute forEach on ArrayList: ArrayList is null");
 		return;
 	}
 
 	// Return if the action is null
 	if (!action) {
-		Logger_error("Failed to execute forEach on ArrayList: Action is null.");
+		Logger_error("Failed to execute forEach on ArrayList: Action is null");
 		return;
 	}
 
@@ -332,19 +332,19 @@ void ArrayList_forEach(ArrayList* arrayList, void(*action)(void*)) {
 void* ArrayList_find(ArrayList* arrayList, const void* key, const CollectionsCompareFn compare) {
 	// Return if the ArrayList is a nullptr
 	if (!arrayList) {
-		Logger_error("Failed find ArrayList item: ArrayList is null.");
+		Logger_error("Failed find ArrayList item: ArrayList is null");
 		return nullptr;
 	}
 
 	// Return if the key is a nullptr
 	if (!key) {
-		Logger_error("Failed find ArrayList item: Key is null.");
+		Logger_error("Failed find ArrayList item: Key is null");
 		return nullptr;
 	}
 
 	// Return if the compare function is a nullptr
 	if (!compare) {
-		Logger_error("Failed find ArrayList item: Compare function is null.");
+		Logger_error("Failed find ArrayList item: Compare function is null");
 		return nullptr;
 	}
 
@@ -365,7 +365,7 @@ void* ArrayList_find(ArrayList* arrayList, const void* key, const CollectionsCom
 ArrayListIterator ArrayList_begin(ArrayList* arrayList) {
 	// Return an empty iterator if the ArrayList is null
 	if (!arrayList) {
-		Logger_error("Failed to create ArrayList iterator: ArrayList is null.");
+		Logger_error("Failed to create ArrayList iterator: ArrayList is null");
 		return (ArrayListIterator){};
 	}
 
@@ -376,7 +376,7 @@ ArrayListIterator ArrayList_begin(ArrayList* arrayList) {
 ArrayListIterator ArrayList_end(ArrayList* arrayList) {
 	// Return an empty iterator if the ArrayList is null
 	if (!arrayList) {
-		Logger_error("Failed to create ArrayList iterator: ArrayList is null.");
+		Logger_error("Failed to create ArrayList iterator: ArrayList is null");
 		return (ArrayListIterator){};
 	}
 
@@ -387,7 +387,7 @@ ArrayListIterator ArrayList_end(ArrayList* arrayList) {
 void* ArrayListIterator_next(ArrayListIterator* iterator) {
 	// Return null if the iterator is null
 	if (!iterator) {
-		Logger_error("Failed to advance ArrayListIterator: ArrayListIterator is null.");
+		Logger_error("Failed to advance ArrayListIterator: ArrayListIterator is null");
 		return nullptr;
 	}
 
@@ -406,7 +406,7 @@ void* ArrayListIterator_next(ArrayListIterator* iterator) {
 void* ArrayListIterator_previous(ArrayListIterator* iterator) {
 	// Return null if the iterator is null
 	if (!iterator) {
-		Logger_error("Failed to regress ArrayListIterator: ArrayListIterator is null.");
+		Logger_error("Failed to regress ArrayListIterator: ArrayListIterator is null");
 		return nullptr;
 	}
 

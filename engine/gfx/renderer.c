@@ -6,6 +6,7 @@ static RendererState rendererState;
 
 void Renderer_create() {
 	Logger_info("Creating renderer subsystem...");
+	Logger_pushIndent();
 
 	// Create the GPU device
 	rendererState.gpuDevice = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, nullptr);
@@ -20,14 +21,18 @@ void Renderer_create() {
 		exit(EXIT_FAILURE);
 	}
 
+	Logger_popIndent();
 }
 
 void Renderer_destroy() {
 	Logger_info("Destroying renderer subsystem...");
+	Logger_pushIndent();
 
 	// Release associated resources
 	SDL_ReleaseWindowFromGPUDevice(rendererState.gpuDevice, Window_getHandle());
 	SDL_DestroyGPUDevice(rendererState.gpuDevice);
+
+	Logger_popIndent();
 }
 
 void Renderer_render() {

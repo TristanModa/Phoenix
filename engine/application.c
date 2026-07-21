@@ -16,11 +16,12 @@ static void update();
 static void tick();
 static void render();
 
-void Application_create(const char *name, const AppVersion version, const AppCallback initCallback,
+void Application_create(const char* name, const char* identifier, const AppVersion version, const AppCallback initCallback,
     const AppCallback destroyCallback, const AppCallback updateCallback, const AppCallback tickCallback,
     const AppCallback renderCallback) {
     // Initialize application state
     appState.name = name;
+    appState.identifier = identifier;
     appState.version = version;
 
     appState.initCallback = initCallback;
@@ -125,12 +126,10 @@ void init() {
     // Initialize the logger
     Logger_init(LOGGER_LOG_LEVEL_DEBUG, appState.name, appState.versionString);
 
-    // Initialize the memory allocator
-    Memory_init();
-
     // Initialize SDL
     Logger_info("Initializing SDL...");
     Logger_pushIndent();
+    SDL_SetMemoryFunctions(Memory_malloc, Memory_calloc, Memory_realloc, Memory_free);
     SDL_SetAppMetadata(appState.name, appState.versionString, nullptr);
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         Logger_fatal("Failed to initialize SDL: %s", SDL_GetError());
@@ -148,16 +147,18 @@ void init() {
     Window_show();
 
     // Call the init callback
+    Logger_info("Initializing %s...", appState.name);
+    Logger_pushIndent();
     appState.initCallback();
-
-    Logger_info("Application initialized.");
+    Logger_popIndent();
 }
 
 void destroy() {
-    Logger_info("Shutting down application...");
-
     // Call the destroy callback
+    Logger_info("Destroying %s...", appState.name);
+    Logger_pushIndent();
     appState.destroyCallback();
+    Logger_popIndent();
 
     // Destroy application subsystems
     Input_destroy();
@@ -166,10 +167,12 @@ void destroy() {
 
     // Quit SDL
     Logger_info("Quitting SDL...");
+    Logger_pushIndent();
     SDL_Quit();
+    Logger_popIndent();
 
     // Exit the application
-    Logger_info("Application shut down successfully.");
+    Logger_info("Application shut down successfully");
     Logger_closeLog();
 }
 

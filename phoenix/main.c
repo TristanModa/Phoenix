@@ -7,7 +7,9 @@ void setAppProperties();
 
 int main(void) {
     // Create the application
-    Application_create("Phoenix", (AppVersion){ 0, 0, 0 },
+    Application_create(
+        "Phoenix", "com.vulf.phoenix",
+        (AppVersion){ 0, 0, 0 },
         Phoenix_init,
         Phoenix_destroy,
         Phoenix_update,

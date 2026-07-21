@@ -12,14 +12,14 @@ static void removeNode(LinkedList* linkedList, Node* node);
 LinkedList* LinkedList_create(const size_t itemSize, CollectionsItemDestructorFn itemDestructor) {
 	// Return null if the item size is zero
 	if (itemSize == 0) {
-		Logger_error("Failed to create LinkedList: Item size cannot be 0.");
+		Logger_error("Failed to create LinkedList: Item size cannot be zero");
 		return nullptr;
 	}
 
 	// Allocate memory for the LinkedList
 	LinkedList* linkedList = Memory_malloc(sizeof(*linkedList));
 	if (!linkedList) {
-		Logger_error("Failed to create LinkedList: Memory allocation failed for LinkedList instance.");
+		Logger_error("Failed to create LinkedList: Memory allocation failed for LinkedList instance");
 		return nullptr;
 	}
 
@@ -36,7 +36,7 @@ LinkedList* LinkedList_create(const size_t itemSize, CollectionsItemDestructorFn
 void LinkedList_destroy(LinkedList* linkedList) {
 	// Return if the LinkedList is null
 	if (!linkedList) {
-		Logger_error("Failed to destroy LinkedList: LinkedList is null.");
+		Logger_error("Failed to destroy LinkedList: LinkedList is null");
 		return;
 	}
 
@@ -48,7 +48,7 @@ void LinkedList_destroy(LinkedList* linkedList) {
 size_t LinkedList_getLength(const LinkedList* linkedList) {
 	// Return 0 if the LinkedList is null
 	if (!linkedList) {
-		Logger_error("Failed to get length of LinkedList: LinkedList is null.");
+		Logger_error("Failed to get length of LinkedList: LinkedList is null");
 		return 0;
 	}
 
@@ -59,7 +59,7 @@ size_t LinkedList_getLength(const LinkedList* linkedList) {
 void LinkedList_clear(LinkedList* linkedList) {
 	// Return if the LinkedList is null
 	if (!linkedList) {
-		Logger_error("Failed to clear LinkedList: LinkedList is null.");
+		Logger_error("Failed to clear LinkedList: LinkedList is null");
 		return;
 	}
 
@@ -84,7 +84,7 @@ void LinkedList_clear(LinkedList* linkedList) {
 void* LinkedList_getItem(LinkedList* linkedList, size_t index) {
 	// Return if the LinkedList is null
 	if (!linkedList) {
-		Logger_error("Failed to get item from LinkedList: LinkedList is null.");
+		Logger_error("Failed to get item from LinkedList: LinkedList is null");
 		return nullptr;
 	}
 
@@ -104,13 +104,13 @@ void* LinkedList_getItem(LinkedList* linkedList, size_t index) {
 void* LinkedList_insertItem(LinkedList* linkedList, const void* item, const size_t index) {
 	// Return null if the LinkedList is null
 	if (!linkedList) {
-		Logger_error("Failed to insert item to LinkedList: LinkedList is null.");
+		Logger_error("Failed to insert item to LinkedList: LinkedList is null");
 		return nullptr;
 	}
 
 	// Return if the item is null
 	if (!item) {
-		Logger_error("Failed to insert item to LinkedList: Item is null.");
+		Logger_error("Failed to insert item to LinkedList: Item is null");
 		return nullptr;
 	}
 
@@ -166,7 +166,7 @@ void* LinkedList_insertItem(LinkedList* linkedList, const void* item, const size
 void* LinkedList_removeItem(LinkedList* linkedList, size_t index) {
 	// Return null if the LinkedList is null
 	if (!linkedList) {
-		Logger_error("Failed to remove item from LinkedList: LinkedList is null.");
+		Logger_error("Failed to remove item from LinkedList: LinkedList is null");
 		return nullptr;
 	}
 	
@@ -184,7 +184,7 @@ void* LinkedList_removeItem(LinkedList* linkedList, size_t index) {
 	// Copy the item to a new memory location
 	void* item = Memory_malloc(linkedList->itemSize);
 	if (!item) {
-		Logger_error("Failed to remove item from LinkedList: Memory allocation failed for removed item.");
+		Logger_error("Failed to remove item from LinkedList: Memory allocation failed for removed item");
 		return nullptr;
 	}
 	memcpy(item, node->data, linkedList->itemSize);
@@ -202,7 +202,7 @@ void* LinkedList_removeItem(LinkedList* linkedList, size_t index) {
 void LinkedList_destroyItem(LinkedList* linkedList, size_t index) {
 	// Return if the LinkedList is null
 	if (!linkedList) {
-		Logger_error("Failed to destroy LinkedList item: LinkedList is null.");
+		Logger_error("Failed to destroy LinkedList item: LinkedList is null");
 		return;
 	}
 
@@ -230,13 +230,13 @@ void LinkedList_destroyItem(LinkedList* linkedList, size_t index) {
 void* LinkedList_replaceItem(LinkedList *linkedList, const void* newItem, size_t index) {
 	// Return if the LinkedList is null
 	if (!linkedList) {
-		Logger_error("Failed to replace LinkedList item: LinkedList is null.");
+		Logger_error("Failed to replace LinkedList item: LinkedList is null");
 		return nullptr;
 	}
 
 	// Return if the item is null
 	if (!newItem) {
-		Logger_error("Failed to replace LinkedList item: Item is null.");
+		Logger_error("Failed to replace LinkedList item: Item is null");
 		return nullptr;
 	}
 
@@ -254,7 +254,7 @@ void* LinkedList_replaceItem(LinkedList *linkedList, const void* newItem, size_t
 	// Copy the old item to a new memory location
 	void* oldItem = Memory_malloc(linkedList->itemSize);
 	if (!oldItem) {
-		Logger_error("Failed to replace LinkedList item: Memory allocation failed for removed item.");
+		Logger_error("Failed to replace LinkedList item: Memory allocation failed for removed item");
 		return nullptr;
 	}
 	memcpy(oldItem, node->data, linkedList->itemSize);
@@ -269,7 +269,7 @@ void* LinkedList_replaceItem(LinkedList *linkedList, const void* newItem, size_t
 LinkedListIterator LinkedList_begin(LinkedList* linkedList) {
 	// Return an empty iterator if the LinkedList is null
 	if (!linkedList) {
-		Logger_error("Failed to create LinkedList iterator: LinkedList is null.");
+		Logger_error("Failed to create LinkedList iterator: LinkedList is null");
 		return (LinkedListIterator){};
 	}
 
@@ -284,7 +284,7 @@ LinkedListIterator LinkedList_begin(LinkedList* linkedList) {
 LinkedListIterator LinkedList_end(LinkedList* linkedList) {
 	// Return an empty iterator if the LinkedList is null
 	if (!linkedList) {
-		Logger_error("Failed to create LinkedList iterator: LinkedList is null.");
+		Logger_error("Failed to create LinkedList iterator: LinkedList is null");
 		return (LinkedListIterator){};
 	}
 
@@ -299,7 +299,7 @@ LinkedListIterator LinkedList_end(LinkedList* linkedList) {
 void* LinkedListIterator_next(LinkedListIterator* iterator) {
 	// Return null if the iterator is null
 	if (!iterator) {
-		Logger_error("Failed to advance LinkedListIterator: LinkedListIterator is null.");
+		Logger_error("Failed to advance LinkedListIterator: LinkedListIterator is null");
 		return nullptr;
 	}
 
@@ -322,7 +322,7 @@ void* LinkedListIterator_next(LinkedListIterator* iterator) {
 void* LinkedListIterator_previous(LinkedListIterator* iterator) {
 	// Return null if the iterator is null
 	if (!iterator) {
-		Logger_error("Failed to regress LinkedListIterator: LinkedListIterator is null.");
+		Logger_error("Failed to regress LinkedListIterator: LinkedListIterator is null");
 		return nullptr;
 	}
 

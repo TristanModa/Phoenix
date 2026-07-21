@@ -39,7 +39,11 @@ void Window_create(const char *title, const WindowCloseCallback windowCloseCallb
 
 void Window_destroy() {
     Logger_info("Destroying window subsystem...");
+    Logger_pushIndent();
+
     SDL_DestroyWindow(windowState.handle);
+
+    Logger_popIndent();
 }
 
 void Window_pollEvents() {

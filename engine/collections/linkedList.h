@@ -29,13 +29,13 @@ typedef struct node {
  */
 typedef struct linkedList {
 	/**
-	 * The number of items in the LinkedList
-	 */
-	size_t length;
-	/**
 	 * The size of an item in bytes
 	 */
 	size_t itemSize;
+	/**
+	 * The number of items in the LinkedList
+	 */
+	size_t length;
 	/**
 	 * The first node in the LinkedList
 	 */

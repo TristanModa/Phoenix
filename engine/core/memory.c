@@ -1,14 +1,7 @@
 #include "memory.h"
 
-#include <SDL3/SDL.h>
 #include <mimalloc.h>
 #include <mimalloc-stats.h>
-
-#include "logger.h"
-
-void Memory_init() {
-    SDL_SetMemoryFunctions(Memory_malloc, Memory_calloc, Memory_realloc, Memory_free);
-}
 
 void* Memory_malloc(const size_t size) {
     return mi_malloc(size);

@@ -10,11 +10,6 @@ typedef struct memoryStats {
 } MemoryStats;
 
 /**
- * Initializes the memory subsystem
- */
-void Memory_init();
-
-/**
  * Allocates uninitialized memory on the heap
  * @param size The amount of memory to allocate in bytes
  * @return A pointer to the allocated memory

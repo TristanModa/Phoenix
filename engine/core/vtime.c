@@ -29,17 +29,16 @@ void Time_init() {
 
     // Throw an error on invalid tick rate
     if (timeState.tickRate <= 0 || isinf(timeState.tickRate) || isnan(timeState.tickRate)) {
-        Logger_fatal("Failed to initialize time: Tick rate of %.2g is invalid.", timeState.tickRate);
+        Logger_fatal("Failed to initialize time: Tick rate of %.2g is invalid", timeState.tickRate);
         exit(EXIT_FAILURE);
     }
 
     // Throw an error on invalid max tick processing time
     if (timeState.maxTickProcessingTimePerFrame <= 0) {
         Logger_fatal(
-            "Failed to initialize time: Max tick processing time per frame of %.2g is invalid.",
+            "Failed to initialize time: Max tick processing time per frame of %.2g is invalid",
             timeState.maxTickProcessingTimePerFrame);
     }
-
 
     // Pop the log indent
     Logger_popIndent();

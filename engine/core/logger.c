@@ -48,13 +48,13 @@ void Logger_init(const LogLevel logLevel, const char* appName, const char* appVe
     loggerState.logInitTime = getTimestampMS();
 
     // Output log initialized
-    Logger_info("Logger initialized.");
+    Logger_info("Logger initialized");
     Logger_pushIndent();
     if (fileOpenFailed) {
         Logger_error(
-            "Failed to open log file \"%s\" for writing: %s.",
+            "Failed to open log file \"%s\" for writing: %s",
             loggerState.logFilePath, strerror(fileOpenErrorNum));
-        Logger_info("Logging to file is disabled.");
+        Logger_info("Logging to file is disabled");
     }
     Logger_popIndent();
 

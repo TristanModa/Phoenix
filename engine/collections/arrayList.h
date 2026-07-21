@@ -11,6 +11,10 @@
  */
 typedef struct arrayList {
 	/**
+	 * The size of an item in bytes
+	 */
+	size_t itemSize;
+	/**
 	 * The number of items in ArrayList
 	 */
 	size_t length;
@@ -18,10 +22,6 @@ typedef struct arrayList {
 	 * The maximum number of items that the ArrayList can hold
 	 */
 	size_t capacity;
-	/**
-	 * The size of an item in bytes
-	 */
-	size_t itemSize;
 	/**
 	 * A pointer to the items of the ArrayList
 	 */
