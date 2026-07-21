@@ -1,15 +1,18 @@
 #include "logger.h"
 
-#include <errno.h>
-#include <stdarg.h>
 #include <stdio.h>
+#include <mimalloc.h>
+#include <time.h>
 #include <SDL3/SDL.h>
 
 #include "types.h"
 
 static LoggerState loggerState;
 
+static u64 getTimestampMS();
 static void logFormatted(LogLevel logLevel, const char* format, va_list args);
+static void mimallocOutputFunction(const char* msg, void* _);
+static void sdlOutputFunction(void* _, int category, SDL_LogPriority priority, const char* msg);
 
 void Logger_setProperties(const LoggerProperties *loggerProperties) {
     loggerState.logFilePath = loggerProperties->logFilePath;
@@ -41,6 +44,9 @@ void Logger_init(const LogLevel logLevel, const char* appName, const char* appVe
             appVersion);
     }
 
+    // Set the log init time
+    loggerState.logInitTime = getTimestampMS();
+
     // Output log initialized
     Logger_info("Logger initialized.");
     Logger_pushIndent();
@@ -51,6 +57,12 @@ void Logger_init(const LogLevel logLevel, const char* appName, const char* appVe
         Logger_info("Logging to file is disabled.");
     }
     Logger_popIndent();
+
+    // Set library log output functions
+    mi_register_output(mimallocOutputFunction, nullptr);
+    SDL_SetLogOutputFunction(sdlOutputFunction, nullptr);
+    SDL_LogPriority sdlLogLevel = loggerState.logLevel + 2;
+    SDL_SetLogPriorities(sdlLogLevel);
 }
 
 void Logger_closeLog() {
@@ -155,8 +167,8 @@ void Logger_setLogLevel(const LogLevel logLevel) {
 }
 
 void Logger_getTimestampString(char* buffer, const size_t bufferSize) {
-    // Get elapsed milliseconds since application start
-    const u64 elapsedMilliseconds = SDL_GetTicks();
+    // Get elapsed milliseconds since log init
+    const u64 elapsedMilliseconds = getTimestampMS() - loggerState.logInitTime;
     const u64 elapsedSeconds = elapsedMilliseconds / 1000;
 
     // Calculate time divisions
@@ -176,9 +188,26 @@ const char* Logger_getLogLevelString(const LogLevel logLevel) {
         case LOGGER_LOG_LEVEL_DEBUG:
             return "Debug";
         case LOGGER_LOG_LEVEL_INFO:
-            return "Info ";
+            return "Info";
         case LOGGER_LOG_LEVEL_WARNING:
-            return "Warn ";
+            return "Warning";
+        case LOGGER_LOG_LEVEL_ERROR:
+            return "Error";
+        case LOGGER_LOG_LEVEL_FATAL:
+            return "Fatal";
+        default:
+            return "Unknown";
+    }
+}
+
+const char* Logger_getLogLevelLabel(LogLevel logLevel) {
+    switch (logLevel) {
+        case LOGGER_LOG_LEVEL_DEBUG:
+            return "Debug";
+        case LOGGER_LOG_LEVEL_INFO:
+            return "Info";
+        case LOGGER_LOG_LEVEL_WARNING:
+            return "Warn";
         case LOGGER_LOG_LEVEL_ERROR:
             return "Error";
         case LOGGER_LOG_LEVEL_FATAL:
@@ -186,6 +215,12 @@ const char* Logger_getLogLevelString(const LogLevel logLevel) {
         default:
             return "Unkwn";
     }
+}
+
+u64 getTimestampMS() {
+    struct timespec spec;
+    clock_gettime(CLOCK_REALTIME_COARSE, &spec);
+    return (u64)spec.tv_sec * 1000 + spec.tv_nsec / 1000000;
 }
 
 void logFormatted(const LogLevel logLevel, const char* format, va_list args) {
@@ -225,15 +260,15 @@ void logFormatted(const LogLevel logLevel, const char* format, va_list args) {
                     escapeCode = ANSI_FATAL;
                     break;
                 default:
-                    escapeCode = ANSI_UNKNOWN;
+                    escapeCode = "";
                     break;
             }
             fprintf(loggerState.outputStreams[i], "%s", escapeCode);
         }
 
         // Print the message label
-        fprintf(loggerState.outputStreams[i], "[%s (%s)]",
-            Logger_getLogLevelString(logLevel),
+        fprintf(loggerState.outputStreams[i], "[%-5s (%s)]",
+            Logger_getLogLevelLabel(logLevel),
             timestampString);
 
         // Print indentation
@@ -250,4 +285,122 @@ void logFormatted(const LogLevel logLevel, const char* format, va_list args) {
             fprintf(loggerState.outputStreams[i], ANSI_RESET);
         }
     }
+}
+
+void mimallocOutputFunction(const char* msg, void* _) {
+    // Return if the message is null or empty
+    if (!msg || msg[0] == '\0') {
+        return;
+    }
+
+    // Create the buffer
+    constexpr size_t BUFFER_SIZE = 128;
+    static char buffer[BUFFER_SIZE] = {};
+    static size_t bufferPos = 0;
+
+    // Write each character from the msg to the buffer
+    size_t i = 0;
+    size_t msgLen = strlen(msg);
+    bool flushBuffer = false;
+    while (i < msgLen) {
+        char c = msg[i];
+
+        // Flush the buffer if filled
+        if (bufferPos >= BUFFER_SIZE - 1) {
+            buffer[BUFFER_SIZE - 1] = '\0';
+            flushBuffer = true;
+            break;
+        }
+
+        // Flush the buffer on newline
+        if (c == '\n') {
+            buffer[bufferPos] = '\0';
+            flushBuffer = true;
+            break;
+        }
+
+        // Write the character to the buffer
+        buffer[bufferPos] = c;
+
+        // Increment iterators
+        i++;
+        bufferPos++;
+    }
+
+    // Return if the buffer should not be flushed yet
+    if (!flushBuffer) {
+        return;
+    }
+
+    // Determine the log level of the message
+    LogLevel logLevel;
+    if (strstr(buffer, "warning") != nullptr) {
+        logLevel = LOGGER_LOG_LEVEL_WARNING;
+    } else if (strstr(buffer, "error") != nullptr) {
+        logLevel = LOGGER_LOG_LEVEL_ERROR;
+    } else {
+        logLevel = LOGGER_LOG_LEVEL_INFO;
+    }
+
+    // Output the message and clear the buffer
+    if (buffer[0] != '\n') {
+        Logger_log(logLevel, "%s", buffer);
+    }
+    memset(buffer, '\0', BUFFER_SIZE);
+    bufferPos = 0;
+}
+
+void sdlOutputFunction(void* _, int category, SDL_LogPriority priority, const char* msg) {
+    // Return if the message is null
+    if (!msg) {
+        return;
+    }
+
+    // Get the category string
+    const char* categoryStr;
+    switch ((SDL_LogCategory)category) {
+        case SDL_LOG_CATEGORY_APPLICATION:
+            categoryStr = "Application";
+            break;
+        case SDL_LOG_CATEGORY_ERROR:
+            categoryStr = "Error";
+            break;
+        case SDL_LOG_CATEGORY_ASSERT:
+            categoryStr = "Assert";
+            break;
+        case SDL_LOG_CATEGORY_SYSTEM:
+            categoryStr = "System";
+            break;
+        case SDL_LOG_CATEGORY_AUDIO:
+            categoryStr = "Audio";
+            break;
+        case SDL_LOG_CATEGORY_VIDEO:
+            categoryStr = "Video";
+            break;
+        case SDL_LOG_CATEGORY_RENDER:
+            categoryStr = "Render";
+            break;
+        case SDL_LOG_CATEGORY_INPUT:
+            categoryStr = "Input";
+            break;
+        case SDL_LOG_CATEGORY_TEST:
+            categoryStr = "Test";
+            break;
+        case SDL_LOG_CATEGORY_GPU:
+            categoryStr = "GPU";
+            break;
+        case SDL_LOG_CATEGORY_CUSTOM:
+            categoryStr = "Custom";
+            break;
+        default:
+            categoryStr = "Unknown";
+            break;
+    }
+
+    // Get the log level string
+    LogLevel logLevel = priority - 2;
+    const char* logLevelString = Logger_getLogLevelString(logLevel);
+
+    // Output the message
+    Logger_log(logLevel, "SDL %s: %s: %s", categoryStr, logLevelString, msg);
 }

@@ -3,7 +3,6 @@
 #include <vulfEngine.h>
 
 void Phoenix_init() {
-
 }
 
 void Phoenix_destroy() {

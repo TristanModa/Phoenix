@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "types.h"
+#include "SDL3/SDL_log.h"
 
 #define ANSI_RESET "\x1B[39m"
 #define ANSI_DEBUG "\x1B[38;5;14m"
@@ -11,7 +12,6 @@
 #define ANSI_WARNING "\x1B[38;5;11m"
 #define ANSI_ERROR "\x1B[38;5;1m"
 #define ANSI_FATAL "\x1B[38;5;88m"
-#define ANSI_UNKNOWN "\x1B[38;5;7m"
 
 /**
  * Defines a configuration for the logger subsystem
@@ -36,11 +36,12 @@ typedef enum logOutputStream {
  * Severity levels for log messages
  */
 typedef enum logLevel {
+    LOGGER_LOG_LEVEL_UNKNOWN, /**< Indicates an undefined or uninitialized log level */
     LOGGER_LOG_LEVEL_DEBUG, /**< Indicates diagnostic information used for debugging purposes */
     LOGGER_LOG_LEVEL_INFO, /**< Indicates information on expected system behavior */
     LOGGER_LOG_LEVEL_WARNING, /**< Indicates abnormalities that do not impact execution */
     LOGGER_LOG_LEVEL_ERROR, /**< Indicates failures that impact functionality but will not result in application termination */
-    LOGGER_LOG_LEVEL_FATAL /**< Indicates an unrecoverable failure that will result in application termination */
+    LOGGER_LOG_LEVEL_FATAL, /**< Indicates an unrecoverable failure that will result in application termination */
 } LogLevel;
 
 /**
@@ -63,6 +64,10 @@ typedef struct loggerState {
      * The amount of indents to include after the message label
      */
     u32 indentationLevel;
+    /**
+     * The timestamp the log was initialized in ms
+     */
+    u64 logInitTime;
 } LoggerState;
 
 /**
@@ -154,5 +159,11 @@ void Logger_getTimestampString(char* buffer, size_t bufferSize);
  * @return The log level as a C string
  */
 const char* Logger_getLogLevelString(LogLevel logLevel);
+/**
+ * Gets the string representation of a 5 character log level label
+ * @param logLevel The log level to get the string representation of
+ * @return The log level label as a C string
+ */
+const char* Logger_getLogLevelLabel(LogLevel logLevel);
 
 #endif //ENGINE_CORE_LOGGER_H
