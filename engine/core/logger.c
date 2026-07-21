@@ -1,5 +1,6 @@
 #include "logger.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <mimalloc.h>
 #include <time.h>
@@ -240,6 +241,10 @@ void logFormatted(const LogLevel logLevel, const char* format, va_list args) {
             continue;
         }
 
+        // Create a copy of va_args for each stream
+        va_list copyArgs;
+        va_copy(copyArgs, args);
+
         // Add relevant ANSI color code if the stream is stdout
         if (i == LOGGER_OUTPUT_STREAM_STDOUT) {
             const char* escapeCode;
@@ -277,13 +282,16 @@ void logFormatted(const LogLevel logLevel, const char* format, va_list args) {
         }
 
         // Print the message
-        vfprintf(loggerState.outputStreams[i], format, args);
+        vfprintf(loggerState.outputStreams[i], format, copyArgs);
         fprintf(loggerState.outputStreams[i], "\n");
 
         // Print the ANSI reset code if the stream is stdout
         if (i == LOGGER_OUTPUT_STREAM_STDOUT) {
             fprintf(loggerState.outputStreams[i], ANSI_RESET);
         }
+
+        // End the args
+        va_end(copyArgs);
     }
 }
 
@@ -300,7 +308,7 @@ void mimallocOutputFunction(const char* msg, void* _) {
 
     // Write each character from the msg to the buffer
     size_t i = 0;
-    size_t msgLen = strlen(msg);
+    const size_t msgLen = strlen(msg);
     bool flushBuffer = false;
     while (i < msgLen) {
         char c = msg[i];
@@ -343,7 +351,7 @@ void mimallocOutputFunction(const char* msg, void* _) {
     }
 
     // Output the message and clear the buffer
-    if (buffer[0] != '\n') {
+    if (strlen(buffer) != 0) {
         Logger_log(logLevel, "%s", buffer);
     }
     memset(buffer, '\0', BUFFER_SIZE);
@@ -398,9 +406,9 @@ void sdlOutputFunction(void* _, int category, SDL_LogPriority priority, const ch
     }
 
     // Get the log level string
-    LogLevel logLevel = priority - 2;
-    const char* logLevelString = Logger_getLogLevelString(logLevel);
+    const LogLevel logLevel = priority - 2;
+    const char* logLevelStr = Logger_getLogLevelString(logLevel);
 
     // Output the message
-    Logger_log(logLevel, "SDL %s: %s: %s", categoryStr, logLevelString, msg);
+    Logger_log(logLevel, "SDL %s: %s: %s", categoryStr, logLevelStr, msg);
 }
