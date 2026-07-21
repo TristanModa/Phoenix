@@ -6,7 +6,13 @@
 
 #include "logger.h"
 
+static void mimallocOutputFunction(const char* msg, void* _);
+
 void Memory_init() {
+    // Set mimalloc output function
+    mi_register_output(mimallocOutputFunction, nullptr);
+
+    // Set SDL memory functions
     SDL_SetMemoryFunctions(Memory_malloc, Memory_calloc, Memory_realloc, Memory_free);
 }
 
@@ -41,4 +47,22 @@ MemoryStats Memory_getStats() {
         .peakAllocatedBytes = stats.malloc_normal.peak + stats.malloc_huge.peak,
         .totalAllocatedBytes = stats.malloc_normal.total + stats.malloc_huge.total
     };
+}
+
+void mimallocOutputFunction(const char* msg, void* _) {
+    // Suppress messages containing only a newline or mimalloc: error
+    if (strcmp(msg, "\n") == 0 || strcmp(msg, "mimalloc: error: ") == 0) {
+        return;
+    }
+
+    // Create a cleaned message
+    const size_t len = strlen(msg);
+    char cleanedMsg[len];
+    strcpy(cleanedMsg, msg);
+    if (cleanedMsg[len - 1] == '\n') {
+        cleanedMsg[len - 1] = '\0';
+    }
+
+    // Output the error
+    Logger_error("Mimalloc Error: %s", cleanedMsg);
 }
