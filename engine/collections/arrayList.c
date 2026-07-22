@@ -5,7 +5,10 @@
 #include "core/core.h"
 
 static void* getItem(ArrayList* arrayList, size_t index);
-static void setItem(ArrayList* arrayList, const void* item, size_t index);
+static void setItem(ArrayList* arrayList, size_t index, const void* item);
+static void* insertItem(ArrayList* arrayList, size_t index, const void* item);
+static void removeItem(ArrayList* arrayList, size_t index, void** item);
+static void destroyItem(ArrayList* arrayList, size_t index);
 
 ArrayList* ArrayList_create(const size_t itemSize, const size_t capacity,
                             const CollectionsItemDestructorFn itemDestructor) {
@@ -173,28 +176,8 @@ void* ArrayList_insertItem(ArrayList* arrayList, const size_t index, void* item)
 		return nullptr;
 	}
 
-	// Resize the ArrayList if capacity is reached
-	if (arrayList->length == arrayList->capacity) {
-		const size_t newCapacity = arrayList->capacity > 0 ? arrayList->capacity * 2 : 1;
-		ArrayList_resize(arrayList, newCapacity);
-	}
-
-	// Move all items after the insertion index forward one
-	const size_t itemsToMove = arrayList->length - index;
-	if (itemsToMove > 0) {
-		const u8* src = (u8*)arrayList->items + index * arrayList->itemSize;
-		u8* dest = (u8*)arrayList->items + (index + 1) * arrayList->itemSize;
-		memmove(dest, src, itemsToMove * arrayList->itemSize);
-	}
-
-	// Increment the length of the ArrayList
-	arrayList->length++;
-
-	// Set the value of the item
-	setItem(arrayList, item, index);
-
-	// Return the inserted item
-	return getItem(arrayList, index);
+	// Insert the item
+	return insertItem(arrayList, index, item);
 }
 
 void* ArrayList_removeItem(ArrayList* arrayList, const size_t index) {
@@ -220,18 +203,8 @@ void* ArrayList_removeItem(ArrayList* arrayList, const size_t index) {
 	}
 	memcpy(item, getItem(arrayList, index), arrayList->itemSize);
 
-	// Move all items after the removed item back one index
-	const size_t itemsToMove = arrayList->length - index - 1;
-	if (itemsToMove > 0) {
-		const u8* src = getItem(arrayList, index + 1);
-		u8* dest = (u8*)arrayList->items + index * arrayList->itemSize;
-		memmove(dest, src, itemsToMove * arrayList->itemSize);
-	}
-
-	// Decrement the length of the ArrayList
-	arrayList->length--;
-
-	// Return the item
+	// Remove the item
+	removeItem(arrayList, index, item);
 	return item;
 }
 
@@ -250,22 +223,8 @@ void ArrayList_destroyItem(ArrayList* arrayList, const size_t index) {
 		return;
 	}
 
-	// Get the item and call its item destructor if it exists
-	void* item = getItem(arrayList, index);
-	if (arrayList->itemDestructor) {
-		arrayList->itemDestructor(item);
-	}
-
-	// Move all items after the destroyed item back one index
-	const size_t itemsToMove = arrayList->length - index - 1;
-	if (itemsToMove > 0) {
-		const u8* src = getItem(arrayList, index + 1);
-		u8* dest = (u8*)arrayList->items + index * arrayList->itemSize;
-		memmove(dest, src, itemsToMove * arrayList->itemSize);
-	}
-
-	// Decrement the length of the ArrayList
-	arrayList->length--;
+	// Destroy the item
+	destroyItem(arrayList, index);
 }
 
 void* ArrayList_pushBackItem(ArrayList* arrayList, void* item) {
@@ -286,7 +245,7 @@ void* ArrayList_popBackItem(ArrayList* arrayList) {
 		return nullptr;
 	}
 
-	// Insert the item at the end of the ArrayList
+	// Destroy the item at the end of the ArrayList
 	return ArrayList_removeItem(arrayList, ArrayList_getLength(arrayList) - 1);
 }
 
@@ -297,7 +256,7 @@ void ArrayList_destroyBackItem(ArrayList* arrayList) {
 		return;
 	}
 
-	// Insert the item at the end of the ArrayList
+	// Destroy the item at the end of the ArrayList
 	ArrayList_destroyItem(arrayList, ArrayList_getLength(arrayList) - 1);
 }
 
@@ -331,13 +290,13 @@ void* ArrayList_replaceItem(ArrayList* arrayList, const void* newItem, const siz
 	memcpy(oldItem, getItem(arrayList, index), arrayList->itemSize);
 
 	// Insert the new item
-	setItem(arrayList, newItem, index);
+	setItem(arrayList, index, newItem);
 
 	// Return the old item
 	return oldItem;
 }
 
-void ArrayList_forEach(ArrayList* arrayList, CollectionsForEachActionFn action) {
+void ArrayList_forEach(ArrayList* arrayList, const CollectionsForEachActionFn action) {
 	// Return if the ArrayList is null
 	if (!arrayList) {
 		Logger_error("Failed to execute forEach on ArrayList: ArrayList is null");
@@ -399,7 +358,7 @@ ArrayListIterator ArrayList_begin(ArrayList* arrayList) {
 	}
 
 	// Return an iterator starting at the beginning of the ArrayList
-	return (ArrayListIterator){ .arrayList = arrayList, .currentIndex = -1 };
+	return (ArrayListIterator){ .arrayList = arrayList, .currentIndex = 0 };
 }
 
 ArrayListIterator ArrayList_end(ArrayList* arrayList) {
@@ -421,15 +380,12 @@ void* ArrayListIterator_next(ArrayListIterator* iterator) {
 	}
 
 	// Return null if there is no next item
-	if (iterator->currentIndex >= iterator->arrayList->length - 1) {
+	if (iterator->currentIndex >= iterator->arrayList->length) {
 		return nullptr;
 	}
 
-	// Increment the current index
-	iterator->currentIndex++;
-
 	// Return the item
-	return ArrayList_getItem(iterator->arrayList, iterator->currentIndex);
+	return getItem(iterator->arrayList, iterator->currentIndex++);
 }
 
 void* ArrayListIterator_previous(ArrayListIterator* iterator) {
@@ -440,15 +396,12 @@ void* ArrayListIterator_previous(ArrayListIterator* iterator) {
 	}
 
 	// Return null if there is no previous item
-	if (iterator->currentIndex <= 0) {
+	if (iterator->currentIndex == 0) {
 		return nullptr;
 	}
 
-	// Decrement the current index
-	iterator->currentIndex--;
-
 	// Return the item
-	return ArrayList_getItem(iterator->arrayList, iterator->currentIndex);
+	return getItem(iterator->arrayList, --iterator->currentIndex);
 }
 
 void* ArrayListIterator_insertItem(ArrayListIterator* iterator, void* item) {
@@ -460,14 +413,8 @@ void* ArrayListIterator_insertItem(ArrayListIterator* iterator, void* item) {
 		return nullptr;
 	}
 
-	// Insert the item into the ArrayList
-	void* insertedItem = ArrayList_insertItem(iterator->arrayList, iterator->currentIndex, item);
-
-	// Increment the current index of the iterator to avoid iterator invalidation
-	iterator->currentIndex++;
-
-	// Return the item
-	return insertedItem;
+	// Insert the item
+	return insertItem(iterator->arrayList, iterator->currentIndex++, item);
 }
 
 void* ArrayListIterator_removeItem(ArrayListIterator* iterator) {
@@ -479,8 +426,18 @@ void* ArrayListIterator_removeItem(ArrayListIterator* iterator) {
 		return nullptr;
 	}
 
+	// Copy the item to a new memory location
+	void* item = Memory_malloc(iterator->arrayList->itemSize);
+	if (!item) {
+		Logger_error(
+			"Failed to perform ArrayList item removal with ArrayListIterator: "
+			"Memory allocation failed for removed item");
+		return nullptr;
+	}
+
 	// Remove the item
-	return ArrayList_removeItem(iterator->arrayList, iterator->currentIndex);
+	removeItem(iterator->arrayList, iterator->currentIndex--, item);
+	return item;
 }
 
 void ArrayListIterator_destroyItem(ArrayListIterator* iterator) {
@@ -493,7 +450,7 @@ void ArrayListIterator_destroyItem(ArrayListIterator* iterator) {
 	}
 
 	// Destroy the item
-	ArrayList_destroyItem(iterator->arrayList, iterator->currentIndex);
+	destroyItem(iterator->arrayList, iterator->currentIndex--);
 }
 
 void* getItem(ArrayList* arrayList, const size_t index) {
@@ -502,10 +459,82 @@ void* getItem(ArrayList* arrayList, const size_t index) {
 	return (u8*)arrayList->items + index * arrayList->itemSize;
 }
 
-void setItem(ArrayList* arrayList, const void* item, const size_t index) {
+void setItem(ArrayList* arrayList, const size_t index, const void* item) {
 	assert(arrayList);
 	assert(item);
 	assert(index < arrayList->length);
 	u8* dest = (u8*)arrayList->items + index * arrayList->itemSize;
 	memcpy(dest, item, arrayList->itemSize);
+}
+
+void* insertItem(ArrayList* arrayList, const size_t index, const void* item) {
+	assert(arrayList);
+	assert(item);
+	assert(index <= arrayList->length);
+
+	// Resize the ArrayList if capacity is reached
+	if (arrayList->length == arrayList->capacity) {
+		const size_t newCapacity = arrayList->capacity > 0 ? arrayList->capacity * 2 : 1;
+		ArrayList_resize(arrayList, newCapacity);
+	}
+
+	// Move all items after the insertion index forward one
+	const size_t itemsToMove = arrayList->length - index;
+	if (itemsToMove > 0) {
+		const u8* src = (u8*)arrayList->items + index * arrayList->itemSize;
+		u8* dest = (u8*)arrayList->items + (index + 1) * arrayList->itemSize;
+		memmove(dest, src, itemsToMove * arrayList->itemSize);
+	}
+
+	// Increment the length of the ArrayList
+	arrayList->length++;
+
+	// Set the value of the item
+	setItem(arrayList, index, item);
+
+	// Return the inserted item
+	return getItem(arrayList, index);
+}
+
+void removeItem(ArrayList* arrayList, const size_t index, void** item) {
+	assert(arrayList);
+	assert(item);
+	assert(*item);
+	assert(index < arrayList->length);
+
+	// Move the item into
+	memcpy(item, getItem(arrayList, index), arrayList->itemSize);
+
+	// Move all items after the removed item back one index
+	const size_t itemsToMove = arrayList->length - index - 1;
+	if (itemsToMove > 0) {
+		const u8* src = getItem(arrayList, index + 1);
+		u8* dest = (u8*)arrayList->items + index * arrayList->itemSize;
+		memmove(dest, src, itemsToMove * arrayList->itemSize);
+	}
+
+	// Decrement the length of the ArrayList
+	arrayList->length--;
+}
+
+void destroyItem(ArrayList* arrayList, const size_t index) {
+	assert(arrayList);
+	assert(index < arrayList->length);
+
+	// Get the item and call its item destructor if it exists
+	void* item = getItem(arrayList, index);
+	if (arrayList->itemDestructor) {
+		arrayList->itemDestructor(item);
+	}
+
+	// Move all items after the destroyed item back one index
+	const size_t itemsToMove = arrayList->length - index - 1;
+	if (itemsToMove > 0) {
+		const u8* src = getItem(arrayList, index + 1);
+		u8* dest = (u8*)arrayList->items + index * arrayList->itemSize;
+		memmove(dest, src, itemsToMove * arrayList->itemSize);
+	}
+
+	// Decrement the length of the ArrayList
+	arrayList->length--;
 }

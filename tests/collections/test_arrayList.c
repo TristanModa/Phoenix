@@ -29,6 +29,41 @@ Test(Collections, ArrayList_create_FailedItemsMalloc) {
 }
 // endregion
 
+// region ArrayList_destroy
+Test(Collections, ArrayList_destroy_NullList) {
+    ArrayList_destroy(nullptr);
+    cr_assert(true);
+}
+
+Test(Collections, ArrayList_destroy_Success) {
+    ArrayList* list = ArrayList_create(sizeof(int), 16, nullptr);
+    for (int i = 0; i < 10; i++) {
+        ArrayList_pushBackItem(list, &i);
+    }
+    ArrayList_destroy(list);
+    cr_assert(true);
+}
+
+static int destroyCount;
+static void destroyInt(void* item) {
+    (void)item;
+    destroyCount++;
+}
+
+Test(Collections, ArrayList_destroy_CallsDestructor) {
+    destroyCount = 0;
+
+    ArrayList* list = ArrayList_create(sizeof(int), 8, destroyInt);
+    for (int i = 0; i < 5; i++) {
+        ArrayList_pushBackItem(list, &i);
+    }
+
+    ArrayList_destroy(list);
+
+    cr_assert_eq(destroyCount, 5);
+}
+// endregion
+
 // region ArrayList_getLength Tests
 Test(Collections, ArrayList_getLength_NullList) {
     cr_assert_eq(ArrayList_getLength(nullptr), 0);
@@ -99,9 +134,15 @@ Test(Collections, ArrayList_resize_NonZeroToZeroCapacity) {
 Test(Collections, ArrayList_resize_NonZeroToNonZeroCapacity) {
     ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
     const void* before = arrayList->items;
+    for (int i = 0; i < 10; i++) {
+        ArrayList_pushBackItem(arrayList, &i);
+    }
     ArrayList_resize(arrayList, 32);
     cr_assert_eq(arrayList->capacity, 32);
     cr_assert_neq(arrayList->items, before);
+    for (int i = 0; i < 10; i++) {
+        cr_assert_eq(*(int*)ArrayList_getItem(arrayList, i), i);
+    }
 }
 
 Test(Collections, ArrayList_resize_FailedResizeMalloc) {
@@ -121,6 +162,10 @@ Test(Collections, ArrayList_resize_LessThanLength) {
     ArrayList_resize(arrayList, 8);
     cr_assert_eq(arrayList->capacity, 16);
     cr_assert_eq(arrayList->items, before);
+    for (int i = 0; i < 10; i++) {
+        cr_assert_eq(*(int*)ArrayList_getItem(arrayList, i), i);
+    }
+
 }
 // endregion
 
@@ -169,7 +214,7 @@ Test(Collections, ArrayList_insertItem_OOB) {
     cr_assert_null(item);
 }
 
-Test(Collections, ArrayList_insertItem_Success) {
+Test(Collections, ArrayList_insertItem_SuccessMiddle) {
     ArrayList* arrayList = ArrayList_create(sizeof(int), 16, nullptr);
 
     // Insert elements into ArrayList
@@ -334,3 +379,70 @@ Test(Collections, ArrayList_pushBackItem_Success) {
     cr_assert_eq(*item, c);
 }
 // endregion
+
+// region ArrayList_forEach
+static int sum;
+static void addItem(void* item) {
+    sum += *(int*)item;
+}
+
+Test(Collections, ArrayList_forEach_NullList) {
+    ArrayList_forEach(nullptr, addItem);
+    cr_assert(true);
+}
+
+Test(Collections, ArrayList_forEach_NullAction) {
+    ArrayList* list = ArrayList_create(sizeof(int), 8, nullptr);
+    ArrayList_forEach(list, nullptr);
+    cr_assert(true);
+}
+
+Test(Collections, ArrayList_forEach_Success) {
+    sum = 0;
+    ArrayList* list = ArrayList_create(sizeof(int), 8, nullptr);
+
+    for (int i = 1; i <= 5; i++) {
+        ArrayList_pushBackItem(list, &i);
+    }
+
+    ArrayList_forEach(list, addItem);
+    cr_assert_eq(sum, 15);
+}
+// endregion
+
+// region ArrayList_find
+static int compareInt(const void* a, const void* b) {
+    return *(int*)a - *(int*)b;
+}
+
+Test(Collections, ArrayList_find_NullList) {
+    int key = 5;
+    cr_assert_null(ArrayList_find(nullptr, &key, compareInt));
+}
+
+Test(Collections, ArrayList_find_NullCompare) {
+    ArrayList* list = ArrayList_create(sizeof(int), 8, nullptr);
+    int key = 5;
+    cr_assert_null(ArrayList_find(list, &key, nullptr));
+}
+
+Test(Collections, ArrayList_find_NotFound) {
+    ArrayList* list = ArrayList_create(sizeof(int), 8, nullptr);
+    const int key = 5;
+    cr_assert_null(ArrayList_find(list, &key, compareInt));
+}
+
+Test(Collections, ArrayList_find_Success) {
+    ArrayList* list = ArrayList_create(sizeof(int), 8, nullptr);
+
+    for (int i = 0; i < 10; i++) {
+        ArrayList_pushBackItem(list, &i);
+    }
+
+    const int key = 6;
+    int* value = ArrayList_find(list, &key, compareInt);
+
+    cr_assert_not_null(value);
+    cr_assert_eq(*value, 6);
+}
+// endRegion
