@@ -1,0 +1,6 @@
+#ifndef ENGINE_CORE_SIGNALHANDLER_H
+#define ENGINE_CORE_SIGNALHANDLER_H
+
+void SignalHandler_init();
+
+#endif //ENGINE_CORE_SIGNALHANDLER_H

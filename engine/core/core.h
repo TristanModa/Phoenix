@@ -4,6 +4,7 @@
 #include "input.h"
 #include "logger.h"
 #include "memory.h"
+#include "signalHandler.h"
 #include "types.h"
 #include "vtime.h"
 #include "window.h"

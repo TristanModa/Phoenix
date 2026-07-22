@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "core/core.h"
 #include "gfx/gfx.h"
 
 static ApplicationState appState;
@@ -16,20 +17,18 @@ static void update();
 static void tick();
 static void render();
 
-void Application_create(const char* name, const char* identifier, const AppVersion version, const AppCallback initCallback,
-    const AppCallback destroyCallback, const AppCallback updateCallback, const AppCallback tickCallback,
-    const AppCallback renderCallback) {
+void Application_create(const char* name, const char* identifier, const AppVersion version,
+    const AppCallback initCallback, const AppCallback destroyCallback, const AppCallback updateCallback,
+    const AppCallback tickCallback, const AppCallback renderCallback) {
     // Initialize application state
     appState.name = name;
     appState.identifier = identifier;
     appState.version = version;
-
     appState.initCallback = initCallback;
     appState.destroyCallback = destroyCallback;
     appState.updateCallback = updateCallback;
     appState.tickCallback = tickCallback;
     appState.renderCallback = renderCallback;
-
     appState.setToExit = false;
 
     // Construct the version string
@@ -123,8 +122,23 @@ void setDefaultSubsystemProperties() {
 }
 
 void init() {
+    // Initialize the signal handler
+    SignalHandler_init();
+
     // Initialize the logger
     Logger_init(LOGGER_LOG_LEVEL_DEBUG, appState.name, appState.versionString);
+
+    // Log missing application callbacks
+    VoidFn appCallbacks[] = {
+        appState.initCallback, appState.destroyCallback,
+        appState.updateCallback, appState.tickCallback, appState.renderCallback
+    };
+    const char* appCallbackNames[] = {
+        "init", "destroy", "update", "tick", "render"
+    };
+    for (size_t i = 0; i < sizeof(appCallbacks) / sizeof(appCallbacks[0]); i++) {
+        Logger_warning("Application %s callback is null", appCallbackNames[i]);
+    }
 
     // Initialize SDL
     Logger_info("Initializing SDL...");
@@ -149,7 +163,8 @@ void init() {
     // Call the init callback
     Logger_info("Initializing %s...", appState.name);
     Logger_pushIndent();
-    appState.initCallback();
+    if (appState.initCallback) appState.initCallback();
+
     Logger_popIndent();
 }
 
@@ -157,7 +172,7 @@ void destroy() {
     // Call the destroy callback
     Logger_info("Destroying %s...", appState.name);
     Logger_pushIndent();
-    appState.destroyCallback();
+    if (appState.destroyCallback) appState.destroyCallback();
     Logger_popIndent();
 
     // Destroy application subsystems
@@ -185,17 +200,17 @@ void update() {
     Input_update();
 
     // Call the update callback
-    appState.updateCallback();
+    if (appState.updateCallback) appState.updateCallback();
 }
 
 void tick() {
     // Call the tick callback
-    appState.tickCallback();
+    if (appState.tickCallback) appState.tickCallback();
 }
 
 void render() {
     // Call the render callback
-    appState.renderCallback();
+    if (appState.renderCallback) appState.renderCallback();
 
     // Render the frame
     Renderer_render();

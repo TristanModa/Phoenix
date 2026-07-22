@@ -10,11 +10,11 @@ int main(void) {
     Application_create(
         "Phoenix", "com.vulf.phoenix",
         (AppVersion){ 0, 0, 0 },
-        Phoenix_init,
-        Phoenix_destroy,
-        Phoenix_update,
-        Phoenix_tick,
-        Phoenix_render);
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr);
 
     // Set the properties of all application systems
     setAppProperties();
