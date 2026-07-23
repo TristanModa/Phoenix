@@ -122,9 +122,6 @@ void setDefaultSubsystemProperties() {
 }
 
 void init() {
-    // Initialize the signal handler
-    SignalHandler_init();
-
     // Initialize the logger
     Logger_init(LOGGER_LOG_LEVEL_DEBUG, appState.name, appState.versionString);
 

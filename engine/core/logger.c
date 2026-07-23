@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <mimalloc.h>
 #include <time.h>
+#include <unistd.h>
 #include <SDL3/SDL.h>
 
 #include "types.h"
@@ -74,6 +75,10 @@ void Logger_closeLog() {
 
     // Close the log file
     fclose(loggerState.outputStreams[LOGGER_OUTPUT_STREAM_LOG_FILE]);
+}
+
+void Logger_write(const char* msg, const size_t len) {
+    write(STDOUT_FILENO, msg, len);
 }
 
 void Logger_log(const LogLevel logLevel, const char* format, ...) {
@@ -180,7 +185,7 @@ void Logger_getTimestampString(char* buffer, const size_t bufferSize) {
 
     // Write the timestamp to the buffer
     snprintf(buffer, bufferSize,
-        "%02" PRIu64 ":%02" PRIu64 ":%02" PRIu64 ":%03" PRIu64,
+        "%02" PRIu64 ":%02" PRIu64 ":%02" PRIu64 ".%03" PRIu64,
         hours, minutes, seconds, milliseconds);
 }
 
@@ -201,7 +206,7 @@ const char* Logger_getLogLevelString(const LogLevel logLevel) {
     }
 }
 
-const char* Logger_getLogLevelLabel(LogLevel logLevel) {
+const char* Logger_getLogLevelLabel(const LogLevel logLevel) {
     switch (logLevel) {
         case LOGGER_LOG_LEVEL_DEBUG:
             return "Debug";

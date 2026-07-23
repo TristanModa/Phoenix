@@ -90,6 +90,13 @@ void Logger_init(LogLevel logLevel, const char* appName, const char* appVersion)
 void Logger_closeLog();
 
 /**
+ * Writes an unformatted async-signal-safe message to stdout
+ * @param msg The message to write
+ * @param len The length of the message
+ */
+void Logger_write(const char* msg, size_t len);
+
+/**
  * Writes a formatted message to all log streams
  * @param logLevel The log level of the message
  * @param format The format string of the message
