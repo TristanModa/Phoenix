@@ -22,5 +22,8 @@ set_target_properties(Criterion PROPERTIES
 )
 target_include_directories(Criterion INTERFACE "${criterion_SOURCE_DIR}/include")
 
-# Add subdirectories
-add_subdirectory(collections)
+# Create the test executable
+file(GLOB_RECURSE TEST_SOURCES *.c)
+add_executable(VulfEngine_Tests ${TEST_SOURCES})
+target_link_libraries(VulfEngine_Tests PRIVATE VulfEngine Criterion)
+target_include_directories(VulfEngine_Tests PRIVATE "${CMAKE_SOURCE_DIR}/engine")

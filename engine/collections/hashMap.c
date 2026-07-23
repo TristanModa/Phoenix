@@ -1,6 +1,7 @@
 #include "hashMap.h"
 
 #include <assert.h>
+#include <string.h>
 
 #include "core/core.h"
 
@@ -43,6 +44,30 @@ HashMap* HashMap_create(size_t bucketCount, size_t itemSize, CollectionsItemDest
     }
 
     return hashMap;
+}
+
+bool HashMap_hasKey(HashMap* hashMap, const char* key) {
+    // Return null if the HashMap is null
+    if (!hashMap) {
+        Logger_error("Failed to check for key in HashMap: HashMap is null");
+        return false;
+    }
+
+    // Return null if the key is null
+    if (!key) {
+        Logger_error("Failed to check for key in HashMap: Key is null");
+        return false;
+    }
+
+    // Return false if the bucket does not exist
+    size_t index = getBucketIndex(hashMap, key);
+    LinkedList* bucket = hashMap->buckets[index];
+    if (!bucket) {
+        return false;
+    }
+
+    // Return whether a KeyValuePair exists with the specified key
+    return (bool)getKeyValuePairFromBucket(bucket, key);
 }
 
 void* HashMap_getItem(HashMap* hashMap, const char* key) {
@@ -169,6 +194,9 @@ void* HashMap_insertItem(HashMap* hashMap, const char* key, const void* item) {
         return nullptr;
     }
 
+    // Sort the bucket by key
+    LinkedList_sort(bucket, (CollectionsCompareFn)strcmp);
+
     // Log a warning if the length of the bucket has exceeded 5
     if (LinkedList_getLength(bucket) > HASHMAP_BUCKET_SIZE_WARNING_THRESHOLD) {
         Logger_warning(
@@ -181,53 +209,33 @@ void* HashMap_insertItem(HashMap* hashMap, const char* key, const void* item) {
     return result;
 }
 
-void* HashMap_removeItem(HashMap* hashMap, const char* key) {
-    // Return null if the HashMap is null
+bool HashMap_forEach(HashMap* hashMap, CollectionsForEachActionFn action) {
+    // Return failure if the HashMap is null
     if (!hashMap) {
-        Logger_error("Failed to remove item from HashMap: HashMap is null");
-        return nullptr;
-    }
-
-    // Return null if the key is null
-    if (!key) {
-        Logger_error("Failed to remove item from HashMap: Key is null");
-        return nullptr;
-    }
-
-    // Return null if the key does not exist in the bucket
-    size_t index = getBucketIndex(hashMap, key);
-    LinkedList* bucket = hashMap->buckets[index];
-    KeyValuePair* keyValuePair;
-    if (!bucket || !((keyValuePair = getKeyValuePairFromBucket(bucket, key)))) {
-        Logger_error("Failed to remove item from HashMap: Item with key \"%s\" does not exist", key);
-        return nullptr;
-    }
-
-    // Allocate space for the removed item
-}
-
-bool HashMap_hasKey(HashMap* hashMap, const char* key) {
-    // Return null if the HashMap is null
-    if (!hashMap) {
-        Logger_error("Failed to check for key in HashMap: HashMap is null");
+        Logger_error("Failed to execute forEach on HashMap: HashMap is null");
         return false;
     }
 
-    // Return null if the key is null
-    if (!key) {
-        Logger_error("Failed to check for key in HashMap: Key is null");
+    // Return failure if the action is null
+    if (!action) {
+        Logger_error("Failed to execute forEach on HashMap: Action is null");
         return false;
     }
 
-    // Return false if the bucket does not exist
-    size_t index = getBucketIndex(hashMap, key);
-    LinkedList* bucket = hashMap->buckets[index];
-    if (!bucket) {
-        return false;
+    // Iterate through each bucket in the HashMap
+    for (size_t i = 0; i < hashMap->bucketCount; i++) {
+        // Skip any null buckets
+        LinkedList* bucket = hashMap->buckets[i];
+        if (!bucket) {
+            continue;
+        }
+
+        // Execute action for each KeyValuePair in the bucket
+        LinkedList_forEach(bucket, action);
     }
 
-    // Return whether a KeyValuePair exists with the specified key
-    return (bool)getKeyValuePairFromBucket(bucket, key);
+    // Return success
+    return true;
 }
 
 u64 hashKey(const char* key) {

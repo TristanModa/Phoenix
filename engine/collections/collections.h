@@ -3,6 +3,7 @@
 
 #include "arrayList.h"
 #include "common.h"
+#include "hashMap.h"
 #include "linkedList.h"
 
 #endif //ENGINE_COLLECTIONS_H

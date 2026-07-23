@@ -95,7 +95,7 @@ bool ArrayList_clear(ArrayList* arrayList) {
 	// Call the item destructor on each item if the destructor is not null
 	if (arrayList->itemDestructor) {
 		for (size_t i = 0; i < arrayList->length; i++) {
-			arrayList->itemDestructor(&arrayList->items[i]);
+			arrayList->itemDestructor(getItem(arrayList, i));
 		}
 	}
 
@@ -196,6 +196,15 @@ void* ArrayList_insertItem(ArrayList* arrayList, const size_t index, void* item)
 		return nullptr;
 	}
 
+	// Increase the capacity of the ArrayList if capacity is reached
+	if (arrayList->length == arrayList->capacity) {
+		const size_t newCapacity = arrayList->capacity > 0 ? arrayList->capacity * 2 : 1;
+		if (!ArrayList_resize(arrayList, newCapacity)) {
+			Logger_error("Failed to insert item to ArrayList: ArrayList resizing failed");
+			return nullptr;
+		}
+	}
+
 	// Insert the item
 	return insertItem(arrayList, index, item);
 }
@@ -273,6 +282,15 @@ void* ArrayList_pushBackItem(ArrayList* arrayList, void* item) {
 		return nullptr;
 	}
 
+	// Increase the capacity of the ArrayList if capacity is reached
+	if (arrayList->length == arrayList->capacity) {
+		const size_t newCapacity = arrayList->capacity > 0 ? arrayList->capacity * 2 : 1;
+		if (!ArrayList_resize(arrayList, newCapacity)) {
+			Logger_error("Failed to push back item to ArrayList: ArrayList resizing failed");
+			return nullptr;
+		}
+	}
+
 	// Insert the item at the end of the ArrayList
 	return insertItem(arrayList, arrayList->length, item);
 }
@@ -320,7 +338,8 @@ bool ArrayList_forEach(ArrayList* arrayList, const CollectionsForEachActionFn ac
 
 	// Iterate through the ArrayList and execute the action on each item
 	for (size_t i = 0; i < arrayList->length; i++) {
-		action(&arrayList->items[i]);
+		void* item = getItem(arrayList, i);
+		action(item);
 	}
 
 	// Return success
@@ -350,7 +369,7 @@ void* ArrayList_find(ArrayList* arrayList, const void* key, const CollectionsCom
 	void* result = nullptr;
 	size_t i = 0;
 	while (i < arrayList->length) {
-		void *item = &arrayList->items[i];
+		void* item = getItem(arrayList, 0);
 		if (compare(item, key) == 0) {
 			result = item;
 			break;
@@ -428,6 +447,7 @@ void* ArrayListIterator_next(ArrayListIterator* iterator) {
 
 	// Return null if there is no next item
 	if (iterator->currentIndex >= iterator->arrayList->length) {
+		iterator->lastReturnedIndex = SIZE_MAX;
 		return nullptr;
 	}
 
@@ -480,7 +500,7 @@ void* ArrayListIterator_insertItem(ArrayListIterator* iterator, const void* item
 		return nullptr;
 	}
 
-	// Return null if the iterator is null
+	// Return null if the item is null
 	if (!item) {
 		Logger_error(
 			"Failed to perform ArrayList item insertion with ArrayListIterator: "
@@ -494,6 +514,17 @@ void* ArrayListIterator_insertItem(ArrayListIterator* iterator, const void* item
 			"Failed to perform ArrayList item insertion with ArrayListIterator: "
 			"ArrayListIterator is invalid");
 		return nullptr;
+	}
+
+	// Increase the capacity of the ArrayList if capacity is reached
+	if (iterator->arrayList->length == iterator->arrayList->capacity) {
+		const size_t newCapacity = iterator->arrayList->capacity > 0 ? iterator->arrayList->capacity * 2 : 1;
+		if (!ArrayList_resize(iterator->arrayList, newCapacity)) {
+			Logger_error(
+				"Failed to perform ArrayList item insertion with ArrayListIterator: "
+				"ArrayList resizing failed");
+			return nullptr;
+		}
 	}
 
 	// Insert the item
@@ -521,7 +552,7 @@ bool ArrayListIterator_removeItem(ArrayListIterator* iterator, void* out) {
 	if (iterator->lastReturnedIndex == SIZE_MAX) {
 		Logger_error(
 			"Failed to perform LinkedList item removal with LinkedListIterator: "
-			"No item has been traversed yet, or the item has already been removed");
+			"No item to remove");
 		return false;
 	}
 
@@ -562,7 +593,7 @@ void* ArrayListIterator_replaceItem(ArrayListIterator* iterator, const void* new
 	if (iterator->lastReturnedIndex == SIZE_MAX) {
 		Logger_error(
 			"Failed to perform LinkedList item replacement with LinkedListIterator: "
-			"No item has been traversed yet, or the item has been removed");
+			"No item to replace");
 		return nullptr;
 	}
 
@@ -588,12 +619,7 @@ void* insertItem(ArrayList* arrayList, const size_t index, const void* item) {
 	assert(arrayList);
 	assert(item);
 	assert(index <= arrayList->length);
-
-	// Resize the ArrayList if capacity is reached
-	if (arrayList->length == arrayList->capacity) {
-		const size_t newCapacity = arrayList->capacity > 0 ? arrayList->capacity * 2 : 1;
-		ArrayList_resize(arrayList, newCapacity);
-	}
+	assert(arrayList->capacity > arrayList->length);
 
 	// Move all items after the insertion index forward one
 	const size_t itemsToMove = arrayList->length - index;

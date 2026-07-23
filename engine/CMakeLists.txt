@@ -37,6 +37,4 @@ add_library(VulfEngine SHARED
 )
 
 target_include_directories(VulfEngine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(VulfEngine PUBLIC
-        vendor
-)
+target_link_libraries(VulfEngine PUBLIC vendor)
