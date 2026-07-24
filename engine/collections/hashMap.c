@@ -46,6 +46,10 @@ HashMap* HashMap_create(size_t bucketCount, size_t itemSize, CollectionsItemDest
     return hashMap;
 }
 
+bool HashMap_destroy(HashMap* hashMap) {
+
+}
+
 bool HashMap_hasKey(HashMap* hashMap, const char* key) {
     // Return null if the HashMap is null
     if (!hashMap) {

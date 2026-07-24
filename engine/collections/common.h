@@ -14,4 +14,5 @@ typedef void (*CollectionsForEachActionFn)(void*);
  */
 typedef int (*CollectionsCompareFn)(const void*, const void*);
 
+
 #endif //ENGINE_COLLECTIONS_COMMON_H

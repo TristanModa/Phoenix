@@ -21,6 +21,9 @@ typedef struct hashMap {
 } HashMap;
 
 HashMap* HashMap_create(size_t bucketCount, size_t itemSize, CollectionsItemDestructorFn itemDestructor);
+bool HashMap_destroy(HashMap* hashMap);
+
+bool HashMap_clear();
 
 bool HashMap_hasKey(HashMap* hashMap, const char* key);
 

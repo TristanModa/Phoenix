@@ -24,7 +24,7 @@ void Phoenix_init() {
             (char)('A' + (int)i),
             '\0'
         };
-        Person p = { .name = c, .age = (int)i };
+        Person p = { .name = strdup(c), .age = (int)i };
         HashMap_insertItem(hashMap, p.name, &p);
     }
 

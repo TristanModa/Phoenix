@@ -19,9 +19,24 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(mimalloc)
 
+# Get Collections-C
+FetchContent_Declare(
+		collectionsC
+		GIT_REPOSITORY https://github.com/srdja/Collections-C.git
+		GIT_TAG dbedaf9
+		SOURCE_SUBDIR "disable"
+)
+FetchContent_MakeAvailable(collectionsC)
+
+# Build Collections-C
+file(GLOB_RECURSE COLLECTIONS_C_SOURCES "${collectionsC_SOURCE_DIR}/**/*.c")
+add_library(CollectionsC STATIC ${COLLECTIONS_C_SOURCES})
+target_include_directories(CollectionsC PUBLIC "${collectionsC_SOURCE_DIR}/include")
+
 # Create the vendor interface
 add_library(vendor INTERFACE)
 target_link_libraries(vendor INTERFACE
         SDL3::SDL3
 		mimalloc-static
+		CollectionsC
 )
