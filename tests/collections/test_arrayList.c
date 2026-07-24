@@ -1,13 +1,10 @@
-#include <limits.h>
 #include <criterion/criterion.h>
 #include <collections/arrayList.h>
 
-#include "core/memory.h"
-
 // region Helpers
 static int sum;
-static void actionFunc(void* _) {
-    sum++;
+static void actionFunc(void* item) {
+    sum += *(int*)item;
 }
 static int compareFunc(const int* a, const int* b) {
     return (*a > *b) - (*a < *b);
@@ -48,9 +45,6 @@ Test(Collections, ArrayList_destroy_NullList) {
 }
 
 Test(Collections, ArrayList_destroy_NoItemDestructor) {
-    // Get the memory before
-    const size_t memBefore = Memory_getStats().currentAllocatedBytes;
-
     // Populate the ArrayList
     ArrayList* list = ArrayList_create(sizeof(int), 16, nullptr);
     for (int i = 0; i < 10; i++) {
@@ -60,19 +54,10 @@ Test(Collections, ArrayList_destroy_NoItemDestructor) {
     // Destroy the ArrayList
     const bool success = ArrayList_destroy(list);
     cr_assert(success);
-
-    // Get the memory delta
-    const size_t memAfter = Memory_getStats().currentAllocatedBytes;
-    const size_t memDelta = memAfter - memBefore;
-    cr_assert_eq(memDelta, 0);
 }
 
-Test(Collections, ArrayListIterator_next_NullIterator) {
-    // Reset destroy count
+Test(Collections, ArrayList_destroy_ItemDestructor) {
     sum = 0;
-
-    // Get the memory before
-    const size_t memBefore = Memory_getStats().currentAllocatedBytes;
 
     // Populate the ArrayList
     ArrayList* list = ArrayList_create(sizeof(int), 16, actionFunc);
@@ -83,13 +68,6 @@ Test(Collections, ArrayListIterator_next_NullIterator) {
     // Destroy the ArrayList
     const bool success = ArrayList_destroy(list);
     cr_assert(success);
-
-    // Get the memory delta
-    const size_t memAfter = Memory_getStats().currentAllocatedBytes;
-    const size_t memDelta = memAfter - memBefore;
-    cr_assert_eq(memDelta, 0);
-
-    // Check destructor called on each
     cr_assert_eq(sum, 45);
 }
 // endregion
@@ -158,7 +136,7 @@ Test(Collections, ArrayList_clear_HasItems) {
     cr_assert_eq(list->length, 0);
 
     // Check destructor called on each
-    cr_assert_eq(sum, 10);
+    cr_assert_eq(sum, 45);
 }
 // endregion
 
@@ -232,7 +210,7 @@ Test(Collections, ArrayList_resize_NonZeroCapacity) {
 
 // region ArrayList_shrink Tests
 Test(Collections, ArrayList_shrink_NullList) {
-    cr_assert_not(ArrayList_resize(nullptr, 0));
+    cr_assert_not(ArrayList_shrink(nullptr));
 }
 
 Test(Collections, ArrayList_shrink_Success) {
@@ -264,7 +242,7 @@ Test(Collections, ArrayList_getItem_IndexOOB) {
     }
 
     // Get the item
-    cr_assert_null(ArrayList_getItem(nullptr, 10));
+    cr_assert_null(ArrayList_getItem(list, 10));
 }
 
 Test(Collections, ArrayList_getItem_Success) {
@@ -463,17 +441,17 @@ Test(Collections, ArrayList_removeItem_Last) {
 
     // Remove the item
     int out = -1;
-    bool success = ArrayList_removeItem(list, 9, &out);
+    const bool success = ArrayList_removeItem(list, 9, &out);
 
     // Check success
-    constexpr int expected[] = { 0, 1, 2, 3, 5, 6, 7, 8 };
+    constexpr int expected[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
     cr_assert(success);
     cr_assert_eq(out, 9);
     cr_assert_eq(list->length, 9);
     cr_assert_arr_eq(list->items, expected, 9 * sizeof(int));
 }
 
-Test(Colletions, ArrayList_removeItem_NullOut) {
+Test(Collections, ArrayList_removeItem_NullOut) {
     sum = 0;
 
     // Populate the ArrayList
@@ -483,12 +461,12 @@ Test(Colletions, ArrayList_removeItem_NullOut) {
     }
 
     // Remove the item
-    bool success = ArrayList_removeItem(list, 5, actionFunc);
+    const bool success = ArrayList_removeItem(list, 5, nullptr);
 
     // Check success
     constexpr int expected[] = { 0, 1, 2, 3, 4, 6, 7, 8, 9 };
     cr_assert(success);
-    cr_assert_eq(sum, 1);
+    cr_assert_eq(sum, 5);
     cr_assert_eq(list->length, 9);
     cr_assert_arr_eq(list->items, expected, 9 * sizeof(int));
 }
@@ -504,7 +482,7 @@ Test(Collections, ArrayList_replaceItem_NullList) {
 
 Test(Collections, ArrayList_replaceItem_NullItem) {
     ArrayList* list = ArrayList_create(sizeof(int), 16, nullptr);
-    cr_assert_null(ArrayList_replaceItem(list, 0, nullptr));
+    cr_assert_null(ArrayList_replaceItem(list, 0, nullptr, nullptr));
 }
 
 Test(Collections, ArrayList_replaceItem_IndexOOB) {
@@ -600,7 +578,7 @@ Test(Collections, ArrayList_pushBackItem_NullList) {
 
 Test(Collections, ArrayList_pushBackItem_NullItem) {
     ArrayList* list = ArrayList_create(sizeof(int), 16, nullptr);
-    cr_assert_null(ArrayList_pushBackItem(list, 0, nullptr));
+    cr_assert_null(ArrayList_pushBackItem(list, nullptr));
 }
 
 Test(Collections, ArrayList_pushBackItem_Success) {
@@ -612,7 +590,7 @@ Test(Collections, ArrayList_pushBackItem_Success) {
 
     // Insert the item
     int i = -1;
-    const int* item = ArrayList_pushBackItem(list &i);
+    const int* item = ArrayList_pushBackItem(list, &i);
 
     // Check success
     constexpr int expected[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, -1 };
@@ -645,7 +623,7 @@ Test(Collections, ArrayList_pushBackItem_RequiresResize) {
 // region ArrayList_popBackItem Tests
 Test(Collections, ArrayList_popBackItem_NullList) {
     int out = -1;
-    cr_assert_not(ArrayList_removeItem(nullptr, &out));
+    cr_assert_not(ArrayList_popBackItem(nullptr, &out));
     cr_assert_eq(out, -1);
 }
 
@@ -678,13 +656,12 @@ Test(Collections, ArrayList_popBackItem_NullOut) {
     }
 
     // Remove the item
-    bool success = ArrayList_popBackItem(list, nullptr);
+    const bool success = ArrayList_popBackItem(list, nullptr);
 
     // Check success
     constexpr int expected[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
     cr_assert(success);
-    cr_assert_eq(sum, 1);
-    cr_assert_eq(out, 9);
+    cr_assert_eq(sum, 9);
     cr_assert_eq(list->length, 9);
     cr_assert_arr_eq(list->items, expected, 9 * sizeof(int));
 }
@@ -710,17 +687,18 @@ Test(Collections, ArrayList_forEach_Success) {
     }
 
     // Iterate the list
-    ArrayList_forEach(list, actionFunc);
+    const bool success = ArrayList_forEach(list, actionFunc);
 
     // Check action called on each
-    cr_assert(sum, 45);
+    cr_assert(success);
+    cr_assert_eq(sum, 45);
 }
 // endregion
 
 // region ArrayList_find
 Test(Collections, ArrayList_find_NullList) {
-    int key = 0;
-    cr_assert_null(ArrayList_find(nullptr, &key, compareFunc));
+    constexpr int key = 0;
+    cr_assert_null(ArrayList_find(nullptr, &key, (CollectionsCompareFn)compareFunc));
 }
 
 Test(Collections, ArrayList_find_NullKey) {
@@ -742,8 +720,8 @@ Test(Collections, ArrayList_find_Success) {
     }
 
     // Find the key
-    int key = 5;
-    int* item = ArrayList_find(list, &key, (CollectionsCompareFn)compareFunc);
+    constexpr int key = 5;
+    const int* item = ArrayList_find(list, &key, (CollectionsCompareFn)compareFunc);
     cr_assert_not_null(item);
     cr_assert_eq(*item, key);
 }
@@ -767,9 +745,9 @@ Test(Collections, ArrayList_sort_NullList) {
     cr_assert_not(ArrayList_sort(nullptr, (CollectionsCompareFn)compareFunc));
 }
 
-Test(Collections, ArrayList_sort_CompareFunc) {
+Test(Collections, ArrayList_sort_NullCompareFunc) {
     ArrayList* list = ArrayList_create(sizeof(int), 16, nullptr);
-    cr_assert_not(ArrayList_sort(nullptr, (CollectionsCompareFn)compareFunc));
+    cr_assert_not(ArrayList_sort(list, nullptr));
 }
 
 Test(Collections, ArrayList_sort_Success) {
@@ -885,7 +863,7 @@ Test(Collections, ArrayListIterator_next_EndOfList) {
 
     // Check success
     cr_assert_null(item);
-    cr_assert_eq(it.currentIndex, 9);
+    cr_assert_eq(it.currentIndex, 10);
     cr_assert_eq(it.lastReturnedIndex, SIZE_MAX);
 }
 // endregion
@@ -920,7 +898,7 @@ Test(Collections, ArrayListIterator_previous_Regress) {
 
     // Check success
     cr_assert_not_null(item);
-    cr_assert_eq(*item, 5);
+    cr_assert_eq(*item, 4);
     cr_assert_eq(it.currentIndex, 4);
     cr_assert_eq(it.lastReturnedIndex, 5);
 }

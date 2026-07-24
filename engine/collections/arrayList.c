@@ -236,7 +236,7 @@ bool ArrayList_removeItem(ArrayList* arrayList, const size_t index, void* out) {
 	return true;
 }
 
-void* ArrayList_replaceItem(ArrayList* arrayList, size_t index, const void* newItem, void* out) {
+void* ArrayList_replaceItem(ArrayList* arrayList, const size_t index, const void* newItem, void* out) {
 	// Return null if the ArrayList is null
 	if (!arrayList) {
 		Logger_error("Failed to replace ArrayList item: ArrayList is null");
@@ -369,7 +369,7 @@ void* ArrayList_find(ArrayList* arrayList, const void* key, const CollectionsCom
 	void* result = nullptr;
 	size_t i = 0;
 	while (i < arrayList->length) {
-		void* item = getItem(arrayList, 0);
+		void* item = getItem(arrayList, i);
 		if (compare(item, key) == 0) {
 			result = item;
 			break;
@@ -382,7 +382,7 @@ void* ArrayList_find(ArrayList* arrayList, const void* key, const CollectionsCom
 	return result;
 }
 
-bool ArrayList_sort(ArrayList* arrayList, CollectionsCompareFn compare) {
+bool ArrayList_sort(ArrayList* arrayList, const CollectionsCompareFn compare) {
 	// Return failure if the ArrayList is null
 	if (!arrayList) {
 		Logger_error("Failed to sort ArrayList: ArrayList is null");
