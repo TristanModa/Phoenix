@@ -16,14 +16,13 @@ typedef struct arrayListIter {
 	ArrayList* arrayList;
 } ArrayListIter;
 
-ArrayList* ArrayList_create(size_t itemSize, size_t capacity, ItemDestructorFn itemDestructor);
+ArrayList* ArrayList_create(size_t itemSize, ItemDestructorFn itemDestructor);
 void ArrayList_destroy(ArrayList* arrayList);
 
 size_t ArrayList_getSize(const ArrayList* arrayList);
-size_t ArrayList_getCapacity(const ArrayList* arrayList);
 
 void ArrayList_clear(ArrayList* arrayList);
-void ArrayList_shrink(ArrayList* arrayList);
+void ArrayList_trimCapacity(ArrayList* arrayList);
 
 void* ArrayList_getItem(const ArrayList* arrayList, size_t index);
 void* ArrayList_getBackItem(const ArrayList* arrayList);

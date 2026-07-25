@@ -1,6 +1,8 @@
 #ifndef ENGINE_COLLECTIONS_COMMON_H
 #define ENGINE_COLLECTIONS_COMMON_H
 
+typedef enum cc_stat CC_Stat;
+
 /**
  * A function pointer for a collection item destructor
  */

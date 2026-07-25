@@ -2,29 +2,21 @@
 
 #include "core/core.h"
 
-typedef enum cc_stat CC_Stat;
-
 static void destroyItem(const ArrayList* arrayList, void* item);
 
-ArrayList* ArrayList_create(const size_t itemSize, const size_t capacity, const ItemDestructorFn itemDestructor) {
+ArrayList* ArrayList_create(const size_t itemSize, const ItemDestructorFn itemDestructor) {
 	// Return null if the item size is 0
-	if (itemSize == 0) {
-		Logger_error("Failed to create ArrayList: Item size cannot be 0");
-		return nullptr;
-	}
+	COLLECTIONS_REQUIRE(itemSize != 0, "Failed to create ArrayList: Item size cannot be 0", nullptr);
 
 	// Create the ArrayList
 	ArrayList* arrayList = Memory_malloc(sizeof(*arrayList));
-	if (!arrayList) {
-		Logger_error("Failed to create ArrayList: Memory allocation failed");
-		return nullptr;
-	}
+	COLLECTIONS_REQUIRE(arrayList, "Failed to create ArrayList: Memory allocation failed", nullptr);
 	arrayList->itemSize = itemSize;
 	arrayList->itemDestructor = itemDestructor;
 
 	// Create the CC_Array config
 	const CC_ArrayConf arrayConfig = {
-		.capacity = capacity,
+		.capacity = 8,
 		.exp_factor = 2,
 		.mem_alloc = Memory_malloc,
 		.mem_calloc = Memory_calloc,
@@ -57,7 +49,7 @@ void ArrayList_destroy(ArrayList* arrayList) {
 		destroyItem(arrayList, item);
 	});
 
-	// Destroy the CC_Array and ArrayList
+	// Destroy the ArrayList
 	cc_array_destroy(arrayList->cc_array);
 	Memory_free(arrayList);
 }
@@ -67,17 +59,8 @@ size_t ArrayList_getSize(const ArrayList* arrayList) {
 	COLLECTIONS_REQUIRE(arrayList, "Failed to get size of ArrayList: ArrayList is null", SIZE_MAX);
 	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to get size of ArrayList: ArrayList state is invalid", SIZE_MAX);
 
-	// Return the length from the CC_Array
+	// Return the length of the ArrayList
 	return cc_array_size(arrayList->cc_array);
-}
-
-size_t ArrayList_getCapacity(const ArrayList* arrayList) {
-	// Return SIZE_MAX if the ArrayList is null or invalid
-	COLLECTIONS_REQUIRE(arrayList, "Failed to get capacity of ArrayList: ArrayList is null", SIZE_MAX);
-	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to get capacity of ArrayList: ArrayList state is invalid", SIZE_MAX);
-
-	// Return the capacity from the CC_Array
-	return cc_array_capacity(arrayList->cc_array);
 }
 
 void ArrayList_clear(ArrayList* arrayList) {
@@ -90,19 +73,19 @@ void ArrayList_clear(ArrayList* arrayList) {
 		destroyItem(arrayList, item);
 	});
 
-	// Remove all items from the CC_Array
+	// Remove all items from the ArrayList
 	cc_array_remove_all(arrayList->cc_array);
 }
 
-void ArrayList_shrink(ArrayList* arrayList) {
+void ArrayList_trimCapacity(ArrayList* arrayList) {
 	// Return if the ArrayList is null or invalid
-	COLLECTIONS_REQUIRE(arrayList, "Failed to shrink ArrayList: ArrayList is null");
-	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to shrink ArrayList: ArrayList state is invalid");
+	COLLECTIONS_REQUIRE(arrayList, "Failed to trim capacity of ArrayList: ArrayList is null");
+	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to trim capacity of ArrayList: ArrayList state is invalid");
 
 	// Shrink the ArrayList
 	const CC_Stat status = cc_array_trim_capacity(arrayList->cc_array);
 	if (status != CC_OK) {
-		Logger_error("Failed to shrink ArrayList: Memory allocation failed");
+		Logger_error("Failed to trim capacity of ArrayList: Memory allocation failed");
 	}
 }
 
@@ -111,7 +94,7 @@ void* ArrayList_getItem(const ArrayList* arrayList, const size_t index) {
 	COLLECTIONS_REQUIRE(arrayList, "Failed to get item from ArrayList: ArrayList is null", nullptr);
 	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to get item from ArrayList: ArrayList state is invalid", nullptr);
 
-	// Get the item from the CC_Array
+	// Get the item from the ArrayList
 	void* item;
 	const CC_Stat status = cc_array_get_at(arrayList->cc_array, index, &item);
 	if (status != CC_OK) {
@@ -178,7 +161,7 @@ void ArrayList_removeItem(ArrayList* arrayList, const size_t index, void* out) {
 	COLLECTIONS_REQUIRE(arrayList, "Failed to remove item from ArrayList: ArrayList is null");
 	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to remove item from ArrayList: ArrayList state is invalid");
 
-	// Remove the item from the CC_Array
+	// Remove the item from the ArrayList
 	void* item;
 	const CC_Stat status = cc_array_remove_at(arrayList->cc_array, index, &item);
 	if (status != CC_OK) {
@@ -188,7 +171,7 @@ void ArrayList_removeItem(ArrayList* arrayList, const size_t index, void* out) {
 		return;
 	}
 
-	// Copy the memory to out
+	// Copy the item to out if out is not null
 	if (out) { memcpy(out, item, arrayList->itemSize); }
 
 	// Destroy the item

@@ -5,11 +5,11 @@
 
 void setAppProperties();
 
-int main(void) {
+int main() {
     // Create the application
     Application_create(
         "Phoenix", "com.vulf.phoenix",
-        (AppVersion){ 0, 0, 0 },
+        (AppVersion){ .major = 0, .minor = 0, .patch = 0 },
         Phoenix_init,
         Phoenix_destroy,
         Phoenix_update,
