@@ -1,7 +1,8 @@
 cmake_policy(SET CMP0169 OLD)
 
 include(FetchContent)
-include(ExternalProject)
+
+find_package(Git REQUIRED)
 
 # Get SDL3
 FetchContent_Declare(
@@ -20,18 +21,26 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(mimalloc)
 
 # Get Collections-C
-FetchContent_Declare(
-		collectionsC
-		GIT_REPOSITORY https://github.com/srdja/Collections-C.git
-		GIT_TAG dbedaf9
-		SOURCE_SUBDIR "disable"
-)
-FetchContent_MakeAvailable(collectionsC)
+set(COLLECTIONS_C_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/collectionsc")
+if (NOT EXISTS "${COLLECTIONS_C_SOURCE_DIR}/.git")
+	execute_process(
+			COMMAND ${GIT_EXECUTABLE} clone
+			https://github.com/srdja/Collections-C.git
+			${COLLECTIONS_C_SOURCE_DIR}
+			RESULT_VARIABLE result
+	)
+
+	execute_process(
+			COMMAND ${GIT_EXECUTABLE} checkout dbedaf9
+			WORKING_DIRECTORY ${COLLECTIONS_C_SOURCE_DIR}
+	)
+endif ()
 
 # Build Collections-C
-file(GLOB_RECURSE COLLECTIONS_C_SOURCES "${collectionsC_SOURCE_DIR}/**/*.c")
+message(${COLLECTIONS_C_SOURCE_DIR})
+file(GLOB_RECURSE COLLECTIONS_C_SOURCES "${COLLECTIONS_C_SOURCE_DIR}/src/*.c")
 add_library(CollectionsC STATIC ${COLLECTIONS_C_SOURCES})
-target_include_directories(CollectionsC PUBLIC "${collectionsC_SOURCE_DIR}/include")
+target_include_directories(CollectionsC PUBLIC "${COLLECTIONS_C_SOURCE_DIR}/src/include")
 
 # Create the vendor interface
 add_library(vendor INTERFACE)

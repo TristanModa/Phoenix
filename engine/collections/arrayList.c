@@ -1,40 +1,44 @@
 #include "arrayList.h"
 
-#include <assert.h>
-#include <stdlib.h>
-
 #include "core/core.h"
 
-static void* getItem(ArrayList* arrayList, size_t index);
-static void setItem(ArrayList* arrayList, size_t index, const void* item);
-static void* insertItem(ArrayList* arrayList, size_t index, const void* item);
-static void removeItem(ArrayList* arrayList, size_t index);
+typedef enum cc_stat CC_Stat;
 
-ArrayList* ArrayList_create(const size_t itemSize, const size_t capacity,
-                            const CollectionsItemDestructorFn itemDestructor) {
+static void destroyItem(const ArrayList* arrayList, void* item);
+
+ArrayList* ArrayList_create(const size_t itemSize, const size_t capacity, const ItemDestructorFn itemDestructor) {
 	// Return null if the item size is 0
 	if (itemSize == 0) {
 		Logger_error("Failed to create ArrayList: Item size cannot be 0");
 		return nullptr;
 	}
 
-	// Allocate memory for the ArrayList instance
+	// Create the ArrayList
 	ArrayList* arrayList = Memory_malloc(sizeof(*arrayList));
 	if (!arrayList) {
-		Logger_error("Failed to create ArrayList: Memory allocation failed for ArrayList instance");
+		Logger_error("Failed to create ArrayList: Memory allocation failed");
 		return nullptr;
 	}
-
-	// Initialize ArrayList fields
 	arrayList->itemSize = itemSize;
-	arrayList->capacity = capacity;
-	arrayList->length = 0;
 	arrayList->itemDestructor = itemDestructor;
 
-	// Allocate memory for ArrayList items
-	arrayList->items = capacity != 0 ? Memory_malloc(itemSize * capacity) : nullptr;
-	if (!arrayList->items && capacity != 0) {
-		Logger_error("Failed to create ArrayList: Memory allocation failed for ArrayList items");
+	// Create the CC_Array config
+	const CC_ArrayConf arrayConfig = {
+		.capacity = capacity,
+		.exp_factor = 2,
+		.mem_alloc = Memory_malloc,
+		.mem_calloc = Memory_calloc,
+		.mem_free = Memory_free
+	};
+
+	// Create the ArrayList's CC_Array
+	const CC_Stat status = cc_array_new_conf(&arrayConfig, &arrayList->cc_array);
+	if (status != CC_OK) {
+		if (status == CC_ERR_ALLOC) {
+			Logger_error("Failed to create ArrayList: Memory allocation failed");
+		} else {
+			Logger_error("Failed to create ArrayList: Invalid capacity");
+		}
 		Memory_free(arrayList);
 		return nullptr;
 	}
@@ -43,614 +47,396 @@ ArrayList* ArrayList_create(const size_t itemSize, const size_t capacity,
 	return arrayList;
 }
 
-bool ArrayList_destroy(ArrayList* arrayList) {
-	// Return false if the ArrayList is null
-	if (!arrayList) {
-		Logger_error("Failed to destroy ArrayList: ArrayList is null");
-		return false;
-	}
+void ArrayList_destroy(ArrayList* arrayList) {
+	// Return if the ArrayList is null
+	COLLECTIONS_REQUIRE(arrayList, "Failed to destroy ArrayList: ArrayList is null");
+	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to destroy ArrayList: ArrayList state is invalid");
 
-	// Call the item destructor on each item if it is not null
-	if (arrayList->itemDestructor) {
-		ArrayList_forEach(arrayList, arrayList->itemDestructor);
-	}
+	// Call the destructor on each item
+	CC_ARRAY_FOREACH(item, arrayList->cc_array, {
+		destroyItem(arrayList, item);
+	});
 
-	// Release the ArrayList and its items
-	Memory_free(arrayList->items);
+	// Destroy the CC_Array and ArrayList
+	cc_array_destroy(arrayList->cc_array);
 	Memory_free(arrayList);
-
-	// Return success
-	return true;
 }
 
-size_t ArrayList_getLength(const ArrayList* arrayList) {
-	// Return 0 if the ArrayList is null
-	if (!arrayList) {
-		Logger_error("Failed to get length of ArrayList: ArrayList is null");
-		return 0;
-	}
+size_t ArrayList_getSize(const ArrayList* arrayList) {
+	// Return SIZE_MAX if the ArrayList is null or invalid
+	COLLECTIONS_REQUIRE(arrayList, "Failed to get size of ArrayList: ArrayList is null", SIZE_MAX);
+	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to get size of ArrayList: ArrayList state is invalid", SIZE_MAX);
 
-	// Return the length of the ArrayList
-	return arrayList->length;
+	// Return the length from the CC_Array
+	return cc_array_size(arrayList->cc_array);
 }
 
 size_t ArrayList_getCapacity(const ArrayList* arrayList) {
-	// Return 0 if the ArrayList is null
-	if (!arrayList) {
-		Logger_error("Failed to get capacity of ArrayList: ArrayList is null");
-		return 0;
-	}
+	// Return SIZE_MAX if the ArrayList is null or invalid
+	COLLECTIONS_REQUIRE(arrayList, "Failed to get capacity of ArrayList: ArrayList is null", SIZE_MAX);
+	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to get capacity of ArrayList: ArrayList state is invalid", SIZE_MAX);
 
-	// Return the length of the ArrayList
-	return arrayList->capacity;
+	// Return the capacity from the CC_Array
+	return cc_array_capacity(arrayList->cc_array);
 }
 
-bool ArrayList_clear(ArrayList* arrayList) {
-	// Return false if the ArrayList is null
-	if (!arrayList) {
-		Logger_error("Failed to clear ArrayList: ArrayList is null");
-		return false;
-	}
+void ArrayList_clear(ArrayList* arrayList) {
+	// Return if the ArrayList is null or invalid
+	COLLECTIONS_REQUIRE(arrayList, "Failed to clear ArrayList: ArrayList is null");
+	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to clear ArrayList: ArrayList state is invalid");
 
-	// Call the item destructor on each item if the destructor is not null
-	if (arrayList->itemDestructor) {
-		for (size_t i = 0; i < arrayList->length; i++) {
-			arrayList->itemDestructor(getItem(arrayList, i));
-		}
-	}
+	// Call the destructor on each item
+	CC_ARRAY_FOREACH(item, arrayList->cc_array, {
+		destroyItem(arrayList, item);
+	});
 
-	// Set the length of the ArrayList to 0
-	arrayList->length = 0;
-
-	// Return success
-	return true;
+	// Remove all items from the CC_Array
+	cc_array_remove_all(arrayList->cc_array);
 }
 
-bool ArrayList_resize(ArrayList* arrayList, const size_t newCapacity) {
-	// Return failure if the ArrayList is null
-	if (!arrayList) {
-		Logger_error("Failed to resize ArrayList: ArrayList is null");
-		return false;
-	}
+void ArrayList_shrink(ArrayList* arrayList) {
+	// Return if the ArrayList is null or invalid
+	COLLECTIONS_REQUIRE(arrayList, "Failed to shrink ArrayList: ArrayList is null");
+	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to shrink ArrayList: ArrayList state is invalid");
 
-	// Return failure if the new capacity is less than the length
-	if (newCapacity < arrayList->length) {
+	// Shrink the ArrayList
+	const CC_Stat status = cc_array_trim_capacity(arrayList->cc_array);
+	if (status != CC_OK) {
+		Logger_error("Failed to shrink ArrayList: Memory allocation failed");
+	}
+}
+
+void* ArrayList_getItem(const ArrayList* arrayList, const size_t index) {
+	// Return null if the ArrayList is null or invalid
+	COLLECTIONS_REQUIRE(arrayList, "Failed to get item from ArrayList: ArrayList is null", nullptr);
+	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to get item from ArrayList: ArrayList state is invalid", nullptr);
+
+	// Get the item from the CC_Array
+	void* item;
+	const CC_Stat status = cc_array_get_at(arrayList->cc_array, index, &item);
+	if (status != CC_OK) {
 		Logger_error(
-			"Failed to resize ArrayList: New capacity (%zu) is less than current length (%zu)",
-			newCapacity, arrayList->length);
-		return false;
-	}
-
-	// Free the buffer and return success if the desired capacity is 0
-	if (newCapacity == 0) {
-		Memory_free(arrayList->items);
-		arrayList->items = nullptr;
-		arrayList->capacity = 0;
-		return true;
-	}
-
-	// Reallocate the ArrayList items
-	void* items = Memory_realloc(arrayList->items, arrayList->itemSize * newCapacity);
-	if (!items) {
-		Logger_error("Failed to resize ArrayList: Memory reallocation failed for ArrayList items");
-		return false;
-	}
-
-	// Update the ArrayList
-	arrayList->capacity = newCapacity;
-	arrayList->items = items;
-
-	// Return success
-	return true;
-}
-
-bool ArrayList_shrink(ArrayList* arrayList) {
-	// Return false if the ArrayList is null
-	if (!arrayList) {
-		Logger_error("Failed to shrink ArrayList: ArrayList is null");
-		return false;
-	}
-
-	// Resize the ArrayList
-	size_t newCapacity = ArrayList_getLength(arrayList);
-	return ArrayList_resize(arrayList, newCapacity);
-}
-
-void* ArrayList_getItem(ArrayList* arrayList, const size_t index) {
-	// Return null if the ArrayList is null
-	if (!arrayList) {
-		Logger_error("Failed to get item from ArrayList: ArrayList is null");
+			"Failed to get item from ArrayList: Index %zu out of bounds for ArrayList of length %zu",
+			index, ArrayList_getSize(arrayList));
 		return nullptr;
 	}
 
-	// Return null if the index is out of bounds
-	if (index >= arrayList->length) {
-		Logger_error(
-			"Failed to get item from ArrayList: Index %zu is out of bounds for ArrayList of length %zu",
-			index, arrayList->length);
-		return nullptr;
-	}
-
-	// Return a pointer to the item
-	return getItem(arrayList, index);
+	// Return the item
+	return item;
 }
 
-void* ArrayList_insertItem(ArrayList* arrayList, const size_t index, void* item) {
-	// Return null if the ArrayList is null
-	if (!arrayList) {
-		Logger_error("Failed to insert item to ArrayList: ArrayList is null");
-		return nullptr;
-	}
+void* ArrayList_getBackItem(const ArrayList* arrayList) {
+	// Return null if the ArrayList is null or invalid
+	COLLECTIONS_REQUIRE(arrayList, "Failed to get back item of ArrayList: ArrayList is null", nullptr);
+	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to get back item of ArrayList: ArrayList state is invalid", nullptr);
+
+	// Get the size of the ArrayList
+	const size_t size = ArrayList_getSize(arrayList);
+
+	// Return if the ArrayList is empty
+	COLLECTIONS_REQUIRE(size != 0, "Failed to get back item of ArrayList: ArrayList is empty", nullptr);
+
+	// Get the item at the end of the ArrayList
+	return ArrayList_getItem(arrayList, size - 1);
+}
+
+void* ArrayList_insertItem(ArrayList* arrayList, const size_t index, const void* item) {
+	// Return null if the ArrayList is null or invalid
+	COLLECTIONS_REQUIRE(arrayList, "Failed to insert item to ArrayList: ArrayList is null", nullptr);
+	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to insert item to ArrayList: ArrayList state is invalid", nullptr);
 
 	// Return null if the item is null
-	if (!item) {
-		Logger_error("Failed to insert item to ArrayList: Item is null");
-		return nullptr;
-	}
+	COLLECTIONS_REQUIRE(item, "Failed to insert item to ArrayList: Item is null", nullptr);
 
-	// Return null if the index is out of bounds
-	if (index > arrayList->length) {
-		Logger_error(
-			"Failed to insert item to ArrayList: Index %zu is out of bounds for ArrayList of length %zu",
-			index, arrayList->length);
-		return nullptr;
-	}
+	// Allocate memory for the item
+	void* itemCopy = Memory_malloc(arrayList->itemSize);
+	COLLECTIONS_REQUIRE(itemCopy, "Failed to insert item to ArrayList: Memory allocation failed", nullptr);
+	memcpy(itemCopy, item, arrayList->itemSize);
 
-	// Increase the capacity of the ArrayList if capacity is reached
-	if (arrayList->length == arrayList->capacity) {
-		const size_t newCapacity = arrayList->capacity > 0 ? arrayList->capacity * 2 : 1;
-		if (!ArrayList_resize(arrayList, newCapacity)) {
-			Logger_error("Failed to insert item to ArrayList: ArrayList resizing failed");
-			return nullptr;
+	// Add the item to the ArrayList
+	const CC_Stat status = cc_array_add_at(arrayList->cc_array, itemCopy, index);
+	if (status != CC_OK) {
+		if (status == CC_ERR_ALLOC) {
+			Logger_error("Failed to insert item to ArrayList: Memory allocation failed");
+		} else if (status == CC_ERR_MAX_CAPACITY) {
+			Logger_error("Failed to insert item to ArrayList: Max capacity reached");
+		} else {
+			Logger_error(
+				"Failed to insert item to ArrayList: Index %zu out of range for ArrayList of length %zu",
+				index, ArrayList_getSize(arrayList));
 		}
+		Memory_free(itemCopy);
+		return nullptr;
 	}
 
-	// Insert the item
-	return insertItem(arrayList, index, item);
+	// Return the newly added item
+	return itemCopy;
 }
 
-bool ArrayList_removeItem(ArrayList* arrayList, const size_t index, void* out) {
-	// Return failure if the ArrayList is null
-	if (!arrayList) {
-		Logger_error("Failed to remove item from ArrayList: ArrayList is null");
-		return false;
-	}
+void ArrayList_removeItem(ArrayList* arrayList, const size_t index, void* out) {
+	// Return if the ArrayList is null or invalid
+	COLLECTIONS_REQUIRE(arrayList, "Failed to remove item from ArrayList: ArrayList is null");
+	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to remove item from ArrayList: ArrayList state is invalid");
 
-	// Return failure if the index is out of bounds
-	if (index >= arrayList->length) {
+	// Remove the item from the CC_Array
+	void* item;
+	const CC_Stat status = cc_array_remove_at(arrayList->cc_array, index, &item);
+	if (status != CC_OK) {
 		Logger_error(
-			"Failed to remove item from ArrayList: Index %zu is out of bounds for ArrayList of length %zu",
-			index, arrayList->length);
-		return false;
+			"Failed to remove item from ArrayList: Index %zu out of range for ArrayList of length %zu",
+			index, ArrayList_getSize(arrayList));
+		return;
 	}
 
-	// Copy the item to out, or destroy it if out is null
-	void* item = getItem(arrayList, index);
-	if (out) memcpy(out, item, arrayList->itemSize);
-	else if (arrayList->itemDestructor) arrayList->itemDestructor(item);
+	// Copy the memory to out
+	if (out) { memcpy(out, item, arrayList->itemSize); }
 
-	// Remove the item from the ArrayList
-	removeItem(arrayList, index);
-
-	// Return success
-	return true;
+	// Destroy the item
+	destroyItem(arrayList, item);
 }
 
-void* ArrayList_replaceItem(ArrayList* arrayList, const size_t index, const void* newItem, void* out) {
-	// Return null if the ArrayList is null
-	if (!arrayList) {
-		Logger_error("Failed to replace ArrayList item: ArrayList is null");
-		return nullptr;
-	}
-
-	// Return null if the new item is null
-	if (!newItem) {
-		Logger_error("Failed to replace ArrayList item: New item is null");
-		return nullptr;
-	}
-
-	// Return null if the index is out of bounds
-	if (index >= arrayList->length) {
-		Logger_error(
-			"Failed to replace ArrayList item: Index %zu is out of bounds for ArrayList of length %zu",
-			index, arrayList->length);
-		return nullptr;
-	}
-
-	// Copy the item to out, or destroy it if out is null
-	void* item = getItem(arrayList, index);
-	if (out) memcpy(out, item, arrayList->itemSize);
-	else if (arrayList->itemDestructor) arrayList->itemDestructor(item);
-
-	// Set the new item
-	setItem(arrayList, index, newItem);
-
-	// Return the new item
-	return getItem(arrayList, index);
-}
-
-void* ArrayList_pushBackItem(ArrayList* arrayList, void* item) {
-	// Return null if the ArrayList is null
-	if (!arrayList) {
-		Logger_error("Failed to push back item to ArrayList: ArrayList is null");
-		return nullptr;
-	}
+void* ArrayList_replaceItem(ArrayList* arrayList, const size_t index, const void* item, void* out) {
+	// Return null if the ArrayList is null or invalid
+	COLLECTIONS_REQUIRE(arrayList, "Failed to replace item in ArrayList: ArrayList is null", nullptr);
+	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to replace item in ArrayList: ArrayList state is invalid", nullptr);
 
 	// Return null if the item is null
-	if (!item) {
-		Logger_error("Failed to push back item to ArrayList: Item is null");
+	COLLECTIONS_REQUIRE(item, "Failed to replace item in ArrayList: Replacement item is null", nullptr);
+
+	// Allocate memory for the new item
+	void* newItem = Memory_malloc(arrayList->itemSize);
+	COLLECTIONS_REQUIRE(newItem, "Failed to replace item in ArrayList: Memory allocation failed", nullptr);
+	memcpy(newItem, item, arrayList->itemSize);
+
+	// Replace the old item with the new item
+	void* oldItem;
+	const CC_Stat status = cc_array_replace_at(arrayList->cc_array, newItem, index, &oldItem);
+	if (status != CC_OK) {
+		Logger_error(
+			"Failed to replace item in ArrayList: Index %zu out of range for ArrayList of length %zu",
+			index, ArrayList_getSize(arrayList));
+		Memory_free(newItem);
 		return nullptr;
 	}
 
-	// Increase the capacity of the ArrayList if capacity is reached
-	if (arrayList->length == arrayList->capacity) {
-		const size_t newCapacity = arrayList->capacity > 0 ? arrayList->capacity * 2 : 1;
-		if (!ArrayList_resize(arrayList, newCapacity)) {
-			Logger_error("Failed to push back item to ArrayList: ArrayList resizing failed");
-			return nullptr;
-		}
-	}
+	// Copy the old item to out, or destroy it in place if out is null
+	if (out) { memcpy(out, oldItem, arrayList->itemSize); }
+
+	// Destroy the old item
+	destroyItem(arrayList, oldItem);
+
+	// Return the newly inserted item
+	return newItem;
+}
+
+void* ArrayList_pushBackItem(ArrayList* arrayList, const void* item) {
+	// Return null if the ArrayList is null or invalid
+	COLLECTIONS_REQUIRE(arrayList, "Failed to push back item to ArrayList: ArrayList is null", nullptr);
+	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to push back item to ArrayList: ArrayList state is invalid", nullptr);
 
 	// Insert the item at the end of the ArrayList
-	return insertItem(arrayList, arrayList->length, item);
+	const size_t size = ArrayList_getSize(arrayList);
+	return ArrayList_insertItem(arrayList, size, item);
 }
 
-bool ArrayList_popBackItem(ArrayList* arrayList, void* out) {
-	// Return failure if the ArrayList is null
-	if (!arrayList) {
-		Logger_error("Failed to pop back item from ArrayList: ArrayList is null");
-		return false;
-	}
+void ArrayList_popBackItem(ArrayList* arrayList, void* out) {
+	// Return if the ArrayList is null or invalid
+	COLLECTIONS_REQUIRE(arrayList, "Failed to pop back item from ArrayList: ArrayList is null");
+	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to pop back item from ArrayList: ArrayList state is invalid");
 
-	// Return failure if the ArrayList is empty
-	if (arrayList->length == 0) {
-		Logger_error("Failed to pop back item from ArrayList: ArrayList is empty");
-		return false;
-	}
+	// Get the size of the ArrayList
+	const size_t size = ArrayList_getSize(arrayList);
 
-	// Get the index of the back item
-	size_t index = arrayList->length - 1;
+	// Return if the ArrayList is empty
+	COLLECTIONS_REQUIRE(size != 0, "Failed to pop back item from ArrayList: ArrayList is empty");
 
-	// Copy the item to out, or destroy it if out is null
-	void* item = getItem(arrayList, index);
-	if (out) memcpy(out, item, arrayList->itemSize);
-	else if (arrayList->itemDestructor) arrayList->itemDestructor(item);
-
-	// Remove the item
-	removeItem(arrayList, index);
-
-	// Return success
-	return true;
+	// Remove the item at the end of the ArrayList
+	ArrayList_removeItem(arrayList, size - 1, out);
 }
 
-bool ArrayList_forEach(ArrayList* arrayList, const CollectionsForEachActionFn action) {
-	// Return failure if the ArrayList is null
-	if (!arrayList) {
-		Logger_error("Failed to execute forEach on ArrayList: ArrayList is null");
-		return false;
-	}
+void ArrayList_forEach(ArrayList* arrayList, const ItemActionFn action) {
+	// Return if the ArrayList is null or invalid
+	COLLECTIONS_REQUIRE(arrayList, "Failed to execute action on ArrayList items: ArrayList is null");
+	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to execute action on ArrayList items: ArrayList state is invalid");
 
-	// Return failure if the action is null
-	if (!action) {
-		Logger_error("Failed to execute forEach on ArrayList: Action is null");
-		return false;
-	}
+	// Return if the action function is null
+	COLLECTIONS_REQUIRE(action, "Failed to execute action on ArrayList items: Action function is null");
 
-	// Iterate through the ArrayList and execute the action on each item
-	for (size_t i = 0; i < arrayList->length; i++) {
-		void* item = getItem(arrayList, i);
-		action(item);
-	}
-
-	// Return success
-	return true;
+	// Execute the action on each item of the ArrayList
+	cc_array_map(arrayList->cc_array, action);
 }
 
-void* ArrayList_find(ArrayList* arrayList, const void* key, const CollectionsCompareFn compare) {
-	// Return null if the ArrayList is null
-	if (!arrayList) {
-		Logger_error("Failed find ArrayList item: ArrayList is null");
-		return nullptr;
-	}
+void* ArrayList_find(const ArrayList* arrayList, const void* key, const ItemCompareFn compare) {
+	// Return if the ArrayList is null or invalid
+	COLLECTIONS_REQUIRE(arrayList, "Failed to search ArrayList for item: ArrayList is null", nullptr);
+	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to search ArrayList for item: ArrayList state is invalid", nullptr);
 
-	// Return if the key is null
-	if (!key) {
-		Logger_error("Failed find ArrayList item: Key is null");
-		return nullptr;
-	}
+	// Return null if the key is null
+	COLLECTIONS_REQUIRE(key, "Failed to search ArrayList for item: Key is null", nullptr);
 
-	// Return if the compare function is null
-	if (!compare) {
-		Logger_error("Failed find ArrayList item: Compare function is null");
-		return nullptr;
-	}
+	// Return null if the compare function is null
+	COLLECTIONS_REQUIRE(compare, "Failed to search ArrayList for item: Compare function is null", nullptr);
 
 	// Iterate through the ArrayList until a match is found
 	void* result = nullptr;
-	size_t i = 0;
-	while (i < arrayList->length) {
-		void* item = getItem(arrayList, i);
+	CC_ARRAY_FOREACH(item, arrayList->cc_array, {
 		if (compare(item, key) == 0) {
 			result = item;
 			break;
 		}
+	});
 
-		i++;
-	}
-
-	// Return the result
+	// Return result
 	return result;
 }
 
-bool ArrayList_sort(ArrayList* arrayList, const CollectionsCompareFn compare) {
-	// Return failure if the ArrayList is null
-	if (!arrayList) {
-		Logger_error("Failed to sort ArrayList: ArrayList is null");
-		return false;
-	}
+void ArrayList_sort(ArrayList* arrayList, const ItemCompareFn compare) {
+	// Return if the ArrayList is null or invalid
+	COLLECTIONS_REQUIRE(arrayList, "Failed to sort ArrayList items: ArrayList is null");
+	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to sort ArrayList items: ArrayList state is invalid");
 
-	// Return failure if the action is null
-	if (!compare) {
-		Logger_error("Failed to sort ArrayList: Action is null");
-		return false;
-	}
+	// Return if the compare function is null
+	COLLECTIONS_REQUIRE(compare, "Failed to sort ArrayList items: Compare function is null");
 
-	// Sort the ArrayList by the comparison function
-	qsort(arrayList->items, arrayList->length, arrayList->itemSize, compare);
-
-	// Return success
-	return true;
+	// Sort the ArrayList
+	cc_array_sort(arrayList->cc_array, compare);
 }
 
-ArrayListIterator ArrayList_begin(ArrayList* arrayList) {
-	// Return an empty iterator if the ArrayList is null
-	if (!arrayList) {
-		Logger_error("Failed to create ArrayList iterator: ArrayList is null");
-		return (ArrayListIterator){};
-	}
+ArrayListIter ArrayList_begin(ArrayList* arrayList) {
+	// Return if the ArrayList is null or invalid
+	COLLECTIONS_REQUIRE(arrayList, "Failed to create ArrayListIter: ArrayList is null", (ArrayListIter){});
+	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to create ArrayListIter: ArrayList state is invalid", (ArrayListIter){});
 
-	// Return an iterator starting at the beginning of the ArrayList
-	return (ArrayListIterator){
-		.arrayList = arrayList,
-		.currentIndex = 0,
-		.lastReturnedIndex = SIZE_MAX
-	};
+	// Initialize the iterator
+	ArrayListIter it;
+	cc_array_iter_init(&it.cc_arrayIter, arrayList->cc_array);
+	it.arrayList = arrayList;
+
+	// Return the iterator
+	return it;
 }
 
-ArrayListIterator ArrayList_end(ArrayList* arrayList) {
-	// Return an empty iterator if the ArrayList is null
-	if (!arrayList) {
-		Logger_error("Failed to create ArrayList iterator: ArrayList is null");
-		return (ArrayListIterator){};
+void* ArrayListIter_getNext(ArrayListIter* it) {
+	// Return null if the iterator is null or invalid
+	COLLECTIONS_REQUIRE(it, "Failed to advance ArrayListIter: ArrayListIter is null", nullptr);
+	COLLECTIONS_REQUIRE(it->cc_arrayIter.ar, "Failed to advance ArrayListIter: ArrayListIter is invalid", nullptr);
+
+	// Get the next item
+	void* next;
+	const CC_Stat status = cc_array_iter_next(&it->cc_arrayIter, &next);
+	if (status != CC_OK) {
+		return nullptr;
 	}
 
-	// Return an iterator starting at the end of the ArrayList
-	return (ArrayListIterator){
-		.arrayList = arrayList,
-		.currentIndex = arrayList->length,
-		.lastReturnedIndex = SIZE_MAX
-	};
+	// Return the next item
+	return next;
 }
 
-void* ArrayListIterator_next(ArrayListIterator* iterator) {
+size_t ArrayListIter_getIndex(ArrayListIter* it) {
+	// Return SIZE_MAX if the iterator is null or invalid
+	COLLECTIONS_REQUIRE(it, "Failed to get index of ArrayListIter: ArrayListIter is null", SIZE_MAX);
+	COLLECTIONS_REQUIRE(it->cc_arrayIter.ar, "Failed to get index of ArrayListIter: ArrayListIter is invalid", SIZE_MAX);
+
+	// Return SIZE_MAX if ArrayListIter_next has not been called on this iterator
+	COLLECTIONS_REQUIRE(
+		it->cc_arrayIter.index != 0,
+		"Failed to get index of ArrayListIter: Cannot get index of ArrayListIter that has not been advanced",
+		SIZE_MAX);
+
+	// Return the current index
+	return cc_array_iter_index(&it->cc_arrayIter);
+}
+
+void* ArrayListIter_insertItem(ArrayListIter* it, const void* item) {
 	// Return null if the iterator is null
-	if (!iterator) {
-		Logger_error("Failed to advance ArrayListIterator: ArrayListIterator is null");
-		return nullptr;
-	}
-
-	// Return null if the iterator is in an invalid state
-	if (!iterator->arrayList || iterator->currentIndex > iterator->arrayList->length) {
-		Logger_error("Failed to advance ArrayListIterator: ArrayListIterator is invalid");
-		return nullptr;
-	}
-
-	// Return null if there is no next item
-	if (iterator->currentIndex >= iterator->arrayList->length) {
-		iterator->lastReturnedIndex = SIZE_MAX;
-		return nullptr;
-	}
-
-	// Get the item
-	void* item = getItem(iterator->arrayList, iterator->currentIndex);
-
-	// Update iterator state
-	iterator->lastReturnedIndex = iterator->currentIndex;
-	iterator->currentIndex++;
-
-	// Return the item
-	return item;
-}
-
-void* ArrayListIterator_previous(ArrayListIterator* iterator) {
-	// Return null if the iterator is null
-	if (!iterator) {
-		Logger_error("Failed to regress ArrayListIterator: ArrayListIterator is null");
-		return nullptr;
-	}
-
-	// Return null if the iterator is in an invalid state
-	if (!iterator->arrayList || iterator->currentIndex > iterator->arrayList->length) {
-		Logger_error("Failed to regress ArrayListIterator: ArrayListIterator is invalid");
-		return nullptr;
-	}
-
-	// Return null if there is no previous item
-	if (iterator->currentIndex == 0) {
-		return nullptr;
-	}
-
-	// Get the item
-	void* item = getItem(iterator->arrayList, iterator->currentIndex - 1);
-
-	// Update iterator state
-	iterator->lastReturnedIndex = iterator->currentIndex;
-	iterator->currentIndex--;
-
-	// Return the item
-	return item;
-}
-
-void* ArrayListIterator_insertItem(ArrayListIterator* iterator, const void* item) {
-	// Return null if the iterator is null
-	if (!iterator) {
-		Logger_error(
-			"Failed to perform ArrayList item insertion with ArrayListIterator: "
-			"ArrayListIterator is null");
-		return nullptr;
-	}
+	COLLECTIONS_REQUIRE(it, "Failed to insert item with ArrayListIter: ArrayListIter is null", nullptr);
+	COLLECTIONS_REQUIRE(
+		it->cc_arrayIter.ar,
+		"Failed to insert item with ArrayListIter: ArrayListIter is invalid",
+		nullptr);
 
 	// Return null if the item is null
-	if (!item) {
-		Logger_error(
-			"Failed to perform ArrayList item insertion with ArrayListIterator: "
-			"Item is null");
-		return nullptr;
-	}
+	COLLECTIONS_REQUIRE(item, "Failed to insert item with ArrayListIter: Item is null", nullptr);
 
-	// Return null if the iterator is in an invalid state
-	if (!iterator->arrayList || iterator->currentIndex > iterator->arrayList->length) {
-		Logger_error(
-			"Failed to perform ArrayList item insertion with ArrayListIterator: "
-			"ArrayListIterator is invalid");
-		return nullptr;
-	}
+	// Allocate memory for the item
+	void* itemCopy = Memory_malloc(it->arrayList->itemSize);
+	COLLECTIONS_REQUIRE(itemCopy, "Failed to insert item with ArrayListIter: Memory allocation failed", nullptr);
+	memcpy(itemCopy, item, it->arrayList->itemSize);
 
-	// Increase the capacity of the ArrayList if capacity is reached
-	if (iterator->arrayList->length == iterator->arrayList->capacity) {
-		const size_t newCapacity = iterator->arrayList->capacity > 0 ? iterator->arrayList->capacity * 2 : 1;
-		if (!ArrayList_resize(iterator->arrayList, newCapacity)) {
-			Logger_error(
-				"Failed to perform ArrayList item insertion with ArrayListIterator: "
-				"ArrayList resizing failed");
-			return nullptr;
+	// Add the item to the ArrayList
+	const CC_Stat status = cc_array_iter_add(&it->cc_arrayIter, itemCopy);
+	if (status != CC_OK) {
+		if (status == CC_ERR_ALLOC) {
+			Logger_error("Failed to insert item with ArrayListIter: Memory allocation failed");
+		} else {
+			Logger_error("Failed to insert item with ArrayListIter: Max capacity reached");
 		}
+		Memory_free(itemCopy);
+		return nullptr;
 	}
 
-	// Insert the item
-	return insertItem(iterator->arrayList, iterator->currentIndex++, item);
+	// Return the item
+	return itemCopy;
 }
 
-bool ArrayListIterator_removeItem(ArrayListIterator* iterator, void* out) {
-	// Return failure if the iterator is null
-	if (!iterator) {
-		Logger_error(
-			"Failed to perform ArrayList item removal with ArrayListIterator: "
-			"ArrayListIterator is null");
-		return false;
-	}
-
-	// Return failure if the iterator is in an invalid state
-	if (!iterator->arrayList || iterator->currentIndex > iterator->arrayList->length) {
-		Logger_error(
-			"Failed to perform ArrayList item removal with ArrayListIterator: "
-			"ArrayListIterator is invalid");
-		return false;
-	}
-
-	// Return failure if the last returned index is invalid
-	if (iterator->lastReturnedIndex == SIZE_MAX) {
-		Logger_error(
-			"Failed to perform LinkedList item removal with LinkedListIterator: "
-			"No item to remove");
-		return false;
-	}
-
-	// Copy the item to out, or destroy it if out is null
-	void* item = getItem(iterator->arrayList, iterator->lastReturnedIndex);
-	if (out) memcpy(out, item, iterator->arrayList->itemSize);
-	else if (iterator->arrayList->itemDestructor) iterator->arrayList->itemDestructor(item);
+void ArrayListIter_removeItem(ArrayListIter* it, void* out) {
+	// Return if the iterator is null
+	COLLECTIONS_REQUIRE(it, "Failed to remove item with ArrayListIter: ArrayListIter is null");
+	COLLECTIONS_REQUIRE(it->cc_arrayIter.ar, "Failed to remove item with ArrayListIter: ArrayListIter is invalid");
 
 	// Remove the item from the ArrayList
-	removeItem(iterator->arrayList, iterator->lastReturnedIndex);
+	void* item;
+	const CC_Stat status = cc_array_iter_remove(&it->cc_arrayIter, &item);
+	COLLECTIONS_REQUIRE(status == CC_OK, "Failed to remove item with ArrayListIter: No item to remove");
 
-	// Update iterator state
-	if (iterator->currentIndex > iterator->lastReturnedIndex) iterator->currentIndex--;
-	iterator->lastReturnedIndex = SIZE_MAX;
+	// Copy the memory to out
+	if (out) { memcpy(out, item, it->arrayList->itemSize); }
 
-	// Return success
-	return true;
+	// Destroy the item
+	destroyItem(it->arrayList, item);
 }
 
-void* ArrayListIterator_replaceItem(ArrayListIterator* iterator, const void* newItem, void* out) {
+void* ArrayListIter_replaceItem(ArrayListIter* it, const void* item, void* out) {
 	// Return null if the iterator is null
-	if (!iterator) {
-		Logger_error(
-			"Failed to perform ArrayList item replacement with ArrayListIterator: "
-			"ArrayListIterator is null");
+	COLLECTIONS_REQUIRE(it, "Failed to replace item with ArrayListIter: ArrayListIter is null", nullptr);
+	COLLECTIONS_REQUIRE(
+		it->cc_arrayIter.ar,
+		"Failed to replace item with ArrayListIter: ArrayListIter is invalid",
+		nullptr);
+
+	// Return null if the item is null
+	COLLECTIONS_REQUIRE(item, "Failed to replace item with ArrayListIter: Replacement item is null", nullptr);
+
+	// Allocate memory for the new item
+	void* newItem = Memory_malloc(it->arrayList->itemSize);
+	COLLECTIONS_REQUIRE(newItem, "Failed to replace item with ArrayListIter: Memory allocation failed", nullptr);
+	memcpy(newItem, item, it->arrayList->itemSize);
+
+	// Replace the old item with the new item
+	void* oldItem;
+	const CC_Stat status = cc_array_iter_replace(&it->cc_arrayIter, newItem, &oldItem);
+	if (status != CC_OK) {
+		Logger_error("Failed to replace item with ArrayListIter: No item to replace");
+		Memory_free(newItem);
 		return nullptr;
 	}
 
-	// Return null if the iterator is in an invalid state
-	if (!iterator->arrayList || iterator->currentIndex > iterator->arrayList->length) {
-		Logger_error(
-			"Failed to perform ArrayList item replacement with ArrayListIterator: "
-			"ArrayListIterator is invalid");
-		return nullptr;
-	}
+	// Copy the old item to out, or destroy it in place if out is null
+	if (out) { memcpy(out, oldItem, it->arrayList->itemSize); }
 
-	// Return null if the last returned index is invalid
-	if (iterator->lastReturnedIndex == SIZE_MAX) {
-		Logger_error(
-			"Failed to perform LinkedList item replacement with LinkedListIterator: "
-			"No item to replace");
-		return nullptr;
-	}
+	// Destroy the old item
+	destroyItem(it->arrayList, oldItem);
 
-	// Replace the item
-	return ArrayList_replaceItem(iterator->arrayList, iterator->lastReturnedIndex, newItem, out);
+	// Return the newly inserted item
+	return newItem;
 }
 
-void* getItem(ArrayList* arrayList, const size_t index) {
-	assert(arrayList);
-	assert(index < arrayList->length);
-	return (u8*)arrayList->items + index * arrayList->itemSize;
-}
-
-void setItem(ArrayList* arrayList, const size_t index, const void* item) {
-	assert(arrayList);
-	assert(item);
-	assert(index < arrayList->length);
-	u8* dest = (u8*)arrayList->items + index * arrayList->itemSize;
-	memcpy(dest, item, arrayList->itemSize);
-}
-
-void* insertItem(ArrayList* arrayList, const size_t index, const void* item) {
-	assert(arrayList);
-	assert(item);
-	assert(index <= arrayList->length);
-	assert(arrayList->capacity > arrayList->length);
-
-	// Move all items after the insertion index forward one
-	const size_t itemsToMove = arrayList->length - index;
-	if (itemsToMove > 0) {
-		const u8* src = (u8*)arrayList->items + index * arrayList->itemSize;
-		u8* dest = (u8*)arrayList->items + (index + 1) * arrayList->itemSize;
-		memmove(dest, src, itemsToMove * arrayList->itemSize);
+void destroyItem(const ArrayList* arrayList, void* item) {
+	// Call the destructor on the item if it is not null
+	if (arrayList->itemDestructor) {
+		arrayList->itemDestructor(item);
 	}
 
-	// Increment the length of the ArrayList
-	arrayList->length++;
-
-	// Set the value of the item
-	setItem(arrayList, index, item);
-
-	// Return the inserted item
-	return getItem(arrayList, index);
-}
-
-void removeItem(ArrayList* arrayList, const size_t index) {
-	assert(arrayList);
-	assert(index < arrayList->length);
-
-	// Move all items after the removed item back one index
-	const size_t itemsToMove = arrayList->length - index - 1;
-	if (itemsToMove > 0) {
-		const u8* src = getItem(arrayList, index + 1);
-		u8* dest = (u8*)arrayList->items + index * arrayList->itemSize;
-		memmove(dest, src, itemsToMove * arrayList->itemSize);
-	}
-
-	// Decrement the length of the ArrayList
-	arrayList->length--;
+	// Free the item memory
+	Memory_free(item);
 }

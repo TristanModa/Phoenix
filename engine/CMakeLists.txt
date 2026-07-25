@@ -8,12 +8,8 @@ add_library(VulfEngine SHARED
 		collections/arrayList.h
 		collections/arrayList.c
 		collections/common.h
-		collections/hashMap.h
-		collections/hashMap.c
-		collections/linkedList.h
-		collections/linkedList.c
 
-        # Core
+		# Core
         core/core.h
 		core/input.h
 		core/input.c
