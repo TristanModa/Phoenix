@@ -3,5 +3,6 @@
 
 #include "arrayList.h"
 #include "common.h"
+#include "hashMap.h"
 
 #endif //ENGINE_COLLECTIONS_H

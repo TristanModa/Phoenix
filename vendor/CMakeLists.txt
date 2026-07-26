@@ -12,6 +12,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(sdl3)
 
+# Get SDL_Image
+FetchContent_Declare(
+		sdl3-image
+		GIT_REPOSITORY https://github.com/libsdl-org/SDL_image
+		GIT_TAG release-3.4.4
+)
+FetchContent_MakeAvailable(sdl3-image)
+
 # Get Mimalloc
 FetchContent_Declare(
 		mimalloc
@@ -46,6 +54,7 @@ target_include_directories(CollectionsC PUBLIC "${COLLECTIONS_C_SOURCE_DIR}/src/
 add_library(vendor INTERFACE)
 target_link_libraries(vendor INTERFACE
         SDL3::SDL3
+		SDL3_image::SDL3_image
 		mimalloc-static
 		CollectionsC
 )

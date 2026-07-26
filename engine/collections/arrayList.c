@@ -285,18 +285,23 @@ void ArrayList_sort(ArrayList* arrayList, const ItemCompareFn compare) {
 	cc_array_sort(arrayList->cc_array, compare);
 }
 
-ArrayListIter ArrayList_begin(ArrayList* arrayList) {
-	// Return if the ArrayList is null or invalid
-	COLLECTIONS_REQUIRE(arrayList, "Failed to create ArrayListIter: ArrayList is null", (ArrayListIter){});
-	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to create ArrayListIter: ArrayList state is invalid", (ArrayListIter){});
+bool ArrayList_begin(ArrayList* arrayList, ArrayListIter* out) {
+	// Return failure if out is null
+	COLLECTIONS_REQUIRE(out, "Failed to create ArrayListIter: Out is null", false);
+
+	// Initialize out
+	*out = (ArrayListIter){};
+
+	// Return failure if the ArrayList is null or invalid
+	COLLECTIONS_REQUIRE(arrayList, "Failed to create ArrayListIter: ArrayList is null", false);
+	COLLECTIONS_REQUIRE(arrayList->cc_array, "Failed to create ArrayListIter: ArrayList state is invalid", false);
 
 	// Initialize the iterator
-	ArrayListIter it;
-	cc_array_iter_init(&it.cc_arrayIter, arrayList->cc_array);
-	it.arrayList = arrayList;
+	cc_array_iter_init(&out->cc_arrayIter, arrayList->cc_array);
+	out->arrayList = arrayList;
 
-	// Return the iterator
-	return it;
+	// Return success
+	return true;
 }
 
 void* ArrayListIter_getNext(ArrayListIter* it) {
