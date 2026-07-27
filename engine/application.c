@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "core/core.h"
+#include "core/resources.h"
 #include "gfx/gfx.h"
 
 static ApplicationState appState;
@@ -91,7 +92,7 @@ bool Application_shouldExit() {
     return appState.setToExit;
 }
 
-void setDefaultSubsystemProperties() {
+static void setDefaultSubsystemProperties() {
     // Set the default logger properties
     const LoggerProperties loggerProperties = {
         .logFilePath = "app.log"
@@ -113,6 +114,11 @@ void setDefaultSubsystemProperties() {
     };
     Window_setProperties(&windowProperties);
 
+    // Set the default resources properties
+    const ResourcesProperties resourcesProperties = {
+        .cachePurgeFrequency = 5
+    };
+
     // Set the default input properties
     const InputProperties inputProperties = {
         .buttonCount = 0,
@@ -121,20 +127,22 @@ void setDefaultSubsystemProperties() {
     Input_setProperties(&inputProperties);
 }
 
-void init() {
+static void init() {
     // Initialize the logger
     Logger_init(LOGGER_LOG_LEVEL_DEBUG, appState.name, appState.versionString);
 
     // Log missing application callbacks
-    VoidFn appCallbacks[] = {
+    const VoidFn appCallbacks[] = {
         appState.initCallback, appState.destroyCallback,
         appState.updateCallback, appState.tickCallback, appState.renderCallback
     };
-    const char* appCallbackNames[] = {
-        "init", "destroy", "update", "tick", "render"
-    };
     for (size_t i = 0; i < sizeof(appCallbacks) / sizeof(appCallbacks[0]); i++) {
-        Logger_warning("Application %s callback is null", appCallbackNames[i]);
+        if (!appCallbacks[i]) {
+            const char* appCallbackNames[] = {
+                "init", "destroy", "update", "tick", "render"
+            };
+            Logger_warning("Application %s callback is null", appCallbackNames[i]);
+        }
     }
 
     // Initialize SDL
@@ -148,9 +156,11 @@ void init() {
     }
     Logger_popIndent();
 
+
     // Initialize application subsystems
     Time_init();
     Window_create(appState.name, Application_exit);
+    Resources_create();
     Renderer_create();
     Input_create();
 
@@ -165,7 +175,7 @@ void init() {
     Logger_popIndent();
 }
 
-void destroy() {
+static void destroy() {
     // Call the destroy callback
     Logger_info("Destroying %s...", appState.name);
     Logger_pushIndent();
@@ -175,6 +185,7 @@ void destroy() {
     // Destroy application subsystems
     Input_destroy();
     Renderer_destroy();
+    Resources_destroy();
     Window_destroy();
 
     // Quit SDL
@@ -188,24 +199,25 @@ void destroy() {
     Logger_closeLog();
 }
 
-void update() {
+static void update() {
     // Poll window events
     Window_pollEvents();
 
     // Update application subsystems
     Time_update();
+    Resources_update();
     Input_update();
 
     // Call the update callback
     if (appState.updateCallback) appState.updateCallback();
 }
 
-void tick() {
+static void tick() {
     // Call the tick callback
     if (appState.tickCallback) appState.tickCallback();
 }
 
-void render() {
+static void render() {
     // Call the render callback
     if (appState.renderCallback) appState.renderCallback();
 

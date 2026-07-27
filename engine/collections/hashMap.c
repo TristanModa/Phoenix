@@ -83,13 +83,13 @@ bool HashMap_hasKey(const HashMap* hashMap, const char* key) {
 	return cc_hashtable_contains_key(hashMap->cc_hashTable, (void*)key);
 }
 
-void* HashMap_getItem(const HashMap* hashMap, const char* key) {
+KeyValuePair* HashMap_getKeyValuePair(const HashMap* hashMap, const char* key) {
 	// Return null if the HashMap is null or invalid
-	COLLECTIONS_REQUIRE(hashMap, "Failed to get item from HashMap: HashMap is null", nullptr);
-	COLLECTIONS_REQUIRE(hashMap->cc_hashTable, "Failed to get item from HashMap: HashMap state is invalid", nullptr);
+	COLLECTIONS_REQUIRE(hashMap, "Failed to get KeyValuePair from HashMap: HashMap is null", nullptr);
+	COLLECTIONS_REQUIRE(hashMap->cc_hashTable, "Failed to get KeyValuePair from HashMap: HashMap state is invalid", nullptr);
 
 	// Return null if the key is null
-	COLLECTIONS_REQUIRE(key, "Failed to get item from HashMap: Key is null", nullptr);
+	COLLECTIONS_REQUIRE(key, "Failed to get KeyValuePair from HashMap: Key is null", nullptr);
 
 	// Get the KeyValuePair from the HashMap
 	KeyValuePair* keyValuePair;
@@ -99,10 +99,14 @@ void* HashMap_getItem(const HashMap* hashMap, const char* key) {
 	}
 
 	// Return the KeyValuePair's value
-	return keyValuePair->value;
+	return keyValuePair;
 }
 
-void* HashMap_insertItem(HashMap* hashMap, const char* key, const void* item) {
+void* HashMap_getItem(const HashMap* hashMap, const char* key) {
+	return HashMap_getKeyValuePair(hashMap, key)->value;
+}
+
+KeyValuePair* HashMap_insertItem(HashMap* hashMap, const char* key, const void* item) {
 	// Return null if the HashMap is null or invalid
 	COLLECTIONS_REQUIRE(hashMap, "Failed to insert item to HashMap: HashMap is null", nullptr);
 	COLLECTIONS_REQUIRE(hashMap->cc_hashTable, "Failed to insert item to HashMap: HashMap state is invalid", nullptr);
@@ -146,8 +150,8 @@ void* HashMap_insertItem(HashMap* hashMap, const char* key, const void* item) {
 		return nullptr;
 	}
 
-	// Return the newly inserted item
-	return itemCopy;
+	// Return the newly inserted KeyValuePair
+	return keyValuePair;
 }
 
 void HashMap_removeItem(HashMap* hashMap, const char* key, void* out) {

@@ -49,6 +49,9 @@ message(${COLLECTIONS_C_SOURCE_DIR})
 file(GLOB_RECURSE COLLECTIONS_C_SOURCES "${COLLECTIONS_C_SOURCE_DIR}/src/*.c")
 add_library(CollectionsC STATIC ${COLLECTIONS_C_SOURCES})
 target_include_directories(CollectionsC PUBLIC "${COLLECTIONS_C_SOURCE_DIR}/src/include")
+set_target_properties(CollectionsC PROPERTIES
+		POSITION_INDEPENDENT_CODE ON
+)
 
 # Create the vendor interface
 add_library(vendor INTERFACE)

@@ -44,7 +44,8 @@ typedef struct arrayListIter {
  * Allocates and initializes an instance of an ArrayList
  * @param itemSize The size of an item in the ArrayList
  * @param itemDestructor The destructor for an ArrayList item. Pass null for no destructor.
- * @return The newly created ArrayList, or null on failure
+ * @return The newly created ArrayList, or null on failure.
+ * The caller owns the returned pointer and is responsible for freeing it using ArrayList_destroy()
  */
 ArrayList* ArrayList_create(size_t itemSize, ItemDestructorFn itemDestructor);
 /**
