@@ -14,15 +14,9 @@ HashMap* HashMap_create(const size_t itemSize, const ItemDestructorFn itemDestru
 	hashMap->itemSize = itemSize;
 	hashMap->itemDestructor = itemDestructor;
 
-	// Create the CC_HashTable config
-	CC_HashTableConf hashTableConfig;
-	cc_hashtable_conf_init(&hashTableConfig);
-	hashTableConfig.mem_alloc = malloc;
-	hashTableConfig.mem_calloc = calloc;
-	hashTableConfig.mem_free = free;
 
 	// Create the HashMap's CC_HashTable
-	const CC_Stat status = cc_hashtable_new_conf(&hashTableConfig, &hashMap->cc_hashTable);
+	const CC_Stat status = cc_hashtable_new(&hashMap->cc_hashTable);
 	COLLECTIONS_REQUIRE(status == CC_OK, "Failed to create HashMap: Memory allocation failed", nullptr);
 
 	// Return the newly created HashMap
@@ -230,9 +224,10 @@ void HashMapIter_removeItem(HashMapIter* it, void* out) {
 void destroyKeyValuePair(const HashMap* hashMap, KeyValuePair* keyValuePair) {
 	if (hashMap->itemDestructor) {
 		hashMap->itemDestructor(keyValuePair->value);
+	} else {
+		free(keyValuePair->value);
 	}
 
-	free(keyValuePair->value);
 	free((char*)keyValuePair->key);
 	free(keyValuePair);
 }

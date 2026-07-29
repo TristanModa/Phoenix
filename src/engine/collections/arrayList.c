@@ -14,17 +14,8 @@ ArrayList* ArrayList_create(const size_t itemSize, const ItemDestructorFn itemDe
 	arrayList->itemSize = itemSize;
 	arrayList->itemDestructor = itemDestructor;
 
-	// Create the CC_Array config
-	const CC_ArrayConf arrayConfig = {
-		.capacity = 8,
-		.exp_factor = 2,
-		.mem_alloc = malloc,
-		.mem_calloc = calloc,
-		.mem_free = free
-	};
-
 	// Create the ArrayList's CC_Array
-	const CC_Stat status = cc_array_new_conf(&arrayConfig, &arrayList->cc_array);
+	const CC_Stat status = cc_array_new(&arrayList->cc_array);
 	if (status != CC_OK) {
 		if (status == CC_ERR_ALLOC) {
 			Logger_error("Failed to create ArrayList: Memory allocation failed");
@@ -423,8 +414,7 @@ void destroyItem(const ArrayList* arrayList, void* item) {
 	// Call the destructor on the item if it is not null
 	if (arrayList->itemDestructor) {
 		arrayList->itemDestructor(item);
+	} else {
+		free(item);
 	}
-
-	// Free the item memory
-	free(item);
 }

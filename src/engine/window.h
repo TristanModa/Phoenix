@@ -23,7 +23,7 @@ void Window_destroy();
 void Window_pollEvents();
 
 /**
- * Gets the SDL handle of the window.
+ * Gets the SDL handle of the window
  * @return A pointer to the SDL handle of the window
  */
 SDL_Window* Window_getHandle();

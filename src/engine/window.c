@@ -10,7 +10,7 @@ static struct {
 } windowState;
 
 void Window_create(const char* title, const VoidFn windowCloseCallback) {
-    Logger_info("Creating window subsystem...");
+    Logger_info("Creating window...");
     Logger_pushIndent();
 
     // Create the window handle
@@ -31,12 +31,7 @@ void Window_create(const char* title, const VoidFn windowCloseCallback) {
 }
 
 void Window_destroy() {
-    Logger_info("Destroying window subsystem...");
-    Logger_pushIndent();
-
     SDL_DestroyWindow(windowState.handle);
-
-    Logger_popIndent();
 }
 
 void Window_pollEvents() {

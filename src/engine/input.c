@@ -1,9 +1,6 @@
 #include "input.h"
 
-#include <stdlib.h>
-
 #include "logger.h"
-#include "memory.h"
 
 static struct {
     VirtualButton buttons[BUTTON_COUNT];
@@ -15,7 +12,6 @@ void Input_init() {
     // Populate the button array
     for (ButtonID i = 0; i < BUTTON_COUNT; i++) {
         inputState.buttons[i] = (VirtualButton){
-            .id = i,
             .state = (ButtonState){},
             .binding = DEFAULT_BINDINGS[i]
         };

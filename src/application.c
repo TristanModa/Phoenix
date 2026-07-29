@@ -4,27 +4,32 @@
 
 #include "engine/input.h"
 #include "engine/logger.h"
+#include "engine/resources.h"
 #include "engine/vtime.h"
 #include "engine/window.h"
+#include "phoenix/phoenix.h"
 
 static struct {
     bool setToExit;
 } appState;
 
-static void init();
+static void create();
 static void destroy();
+
 static void update();
 static void tick();
 static void render();
 
+static bool shouldTick();
+
 void Application_run() {
     // Initialize the application
-    init();
+    create();
 
     // Start the application loop
     while (!appState.setToExit) {
         update();
-        while (Time_consumeTick()) {
+        while (shouldTick()) {
             tick();
         }
         render();
@@ -42,7 +47,7 @@ void Application_exit() {
     appState.setToExit = true;
 }
 
-static void init() {
+void create() {
     // Initialize the application state
     appState = (typeof(appState)){
         .setToExit = false
@@ -61,16 +66,30 @@ static void init() {
     }
     Logger_popIndent();
 
-    // Create application subsystems
+    // Create application systems
     Time_init();
     Window_create(APPLICATION_NAME, Application_exit);
+    Resources_create();
+
+    // Create the application
+    Logger_info("Creating %s...", APPLICATION_NAME);
+    Logger_pushIndent();
+    APPLICATION_CREATE_CB();
+    Logger_popIndent();
 
     // Show the window
     Window_show();
 }
 
-static void destroy() {
-    // Destroy application subsystems
+void destroy() {
+    // Destroy the application
+    Logger_info("Destroying %s...", APPLICATION_NAME);
+    Logger_pushIndent();
+    APPLICATION_DESTROY_CB();
+    Logger_popIndent();
+
+    // Destroy application systems
+    Resources_destroy();
     Window_destroy();
 
     // Quit SDL
@@ -83,19 +102,29 @@ static void destroy() {
     Logger_destroy();
 }
 
-static void update() {
+void update() {
     // Poll window events
     Window_pollEvents();
 
     // Update application subsystems
     Time_update();
     Input_update();
+    Resources_update();
+
+    // Update the application
+    APPLICATION_UPDATE_CB();
 }
 
 void tick() {
-
+    // Tick the application
+    APPLICATION_TICK_CB();
 }
 
-static void render() {
+void render() {
+    // Render the application
+    APPLICATION_RENDER_CB();
+}
 
+bool shouldTick() {
+    return Time_consumeTick();
 }
