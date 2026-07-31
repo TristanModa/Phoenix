@@ -18,4 +18,6 @@ void Renderer_destroy();
  */
 void Renderer_render();
 
+SDL_GPUDevice* Renderer_getGPUDevice();
+
 #endif //ENGINE_RENDERING_RENDERER_H

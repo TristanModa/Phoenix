@@ -5,6 +5,13 @@ add_executable(${PROJECT_NAME}
         application.h
         application.c
 
+		# Engine::Collections
+		engine/collections/collectionsCommon.h
+		engine/collections/arrayList.h
+		engine/collections/arrayList.c
+		engine/collections/hashMap.h
+		engine/collections/hashMap.c
+
 		# Engine::Core
 		engine/core/input.h
 		engine/core/input.c
@@ -18,12 +25,9 @@ add_executable(${PROJECT_NAME}
 		engine/core/window.h
 		engine/core/window.c
 
-		# Engine::Collections
-		engine/collections/collectionsCommon.h
-		engine/collections/arrayList.h
-		engine/collections/arrayList.c
-		engine/collections/hashMap.h
-		engine/collections/hashMap.c
+		# Engine::Debug
+		engine/debug/debugPanel.h
+		engine/debug/debugPanel.c
 
 		# Engine::Rendering
 		engine/rendering/colors.h
@@ -40,6 +44,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         VERSION_MAJOR="${PROJECT_VERSION_MAJOR}"
         VERSION_MINOR="${PROJECT_VERSION_MINOR}"
         VERSION_PATCH="${PROJECT_VERSION_PATCH}"
+		$<$<CONFIG:Debug>:DEBUG>
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE vendor)
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_SOURCE_DIR}/src")

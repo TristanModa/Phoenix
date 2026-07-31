@@ -1,12 +1,16 @@
 #include "application.h"
 
 #include <stdlib.h>
+#include <dcimgui.h>
+#include <dcimgui_impl_sdl3.h>
+#include <dcimgui_impl_sdlgpu3.h>
 
 #include "engine/core/input.h"
 #include "engine/core/logger.h"
 #include "engine/core/resources.h"
 #include "engine/core/vtime.h"
 #include "engine/core/window.h"
+#include "engine/debug/debugPanel.h"
 #include "engine/rendering/renderer.h"
 #include "phoenix/phoenix.h"
 
@@ -72,6 +76,24 @@ void create() {
     Resources_create();
     Window_create(APPLICATION_NAME, Application_exit);
     Renderer_create(Window_getHandle());
+    Input_init();
+
+    // Initialize ImGui
+    CIMGUI_CHECKVERSION();
+    ImGui_CreateContext(nullptr);
+    cImGui_ImplSDL3_InitForSDLGPU(Window_getHandle());
+    ImGui_ImplSDLGPU3_InitInfo imguiInitInfo = {
+        .Device = Renderer_getGPUDevice(),
+        .ColorTargetFormat = SDL_GetGPUSwapchainTextureFormat(Renderer_getGPUDevice(), Window_getHandle()),
+    };
+    cImGui_ImplSDLGPU3_Init(&imguiInitInfo);
+
+    // Configure ImGui
+    ImGuiIO* imguiIO = ImGui_GetIO();
+    imguiIO->IniFilename = nullptr;
+
+    // Initialize the debug panel
+    DebugPanel_init();
 
     // Create the application
     Logger_info("Creating %s...", APPLICATION_NAME);
@@ -90,6 +112,12 @@ void destroy() {
     APPLICATION_DESTROY_CB();
     Logger_popIndent();
 
+    // Destroy ImGui
+    SDL_WaitForGPUIdle(Renderer_getGPUDevice());
+    cImGui_ImplSDL3_Shutdown();
+    cImGui_ImplSDLGPU3_Shutdown();
+    ImGui_DestroyContext(nullptr);
+
     // Destroy application systems
     Renderer_destroy();
     Resources_destroy();
@@ -106,13 +134,32 @@ void destroy() {
 }
 
 void update() {
-    // Poll window events
-    Window_pollEvents();
+    // Poll SDL events
+    SDL_Event e;
+    while (SDL_PollEvent(&e)) {
+        // Pass the event to ImGui
+        cImGui_ImplSDL3_ProcessEvent(&e);
+
+        // Hanlde the event
+        switch (e.type) {
+            case SDL_EVENT_QUIT:
+                Application_exit();
+                break;
+            default:
+                break;
+        }
+    }
+
+    // Begin the ImGui frame
+    cImGui_ImplSDLGPU3_NewFrame();
+    cImGui_ImplSDL3_NewFrame();
+    ImGui_NewFrame();
 
     // Update application subsystems
     Time_update();
     Input_update();
     Resources_update();
+    DebugPanel_update();
 
     // Update the application
     APPLICATION_UPDATE_CB();
@@ -124,8 +171,14 @@ void tick() {
 }
 
 void render() {
+    // Begin ImGui rendering
+    ImGui_Render();
+
     // Render the application
     APPLICATION_RENDER_CB();
+
+    // Render the frame
+    Renderer_render();
 }
 
 bool shouldTick() {

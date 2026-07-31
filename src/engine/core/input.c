@@ -12,6 +12,7 @@ void Input_init() {
     // Populate the button array
     for (ButtonID i = 0; i < BUTTON_COUNT; i++) {
         inputState.buttons[i] = (VirtualButton){
+            .id = i,
             .state = (ButtonState){},
             .binding = DEFAULT_BINDINGS[i]
         };

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 4.2)
 project(Phoenix
         VERSION 0.0.0
-        LANGUAGES C
+        LANGUAGES C CXX
 )
 
 set(CMAKE_C_STANDARD 23)

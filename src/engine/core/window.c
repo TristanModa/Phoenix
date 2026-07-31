@@ -34,21 +34,6 @@ void Window_destroy() {
     SDL_DestroyWindow(windowState.handle);
 }
 
-void Window_pollEvents() {
-    SDL_Event e;
-    while (SDL_PollEvent(&e)) {
-        switch (e.type) {
-            case SDL_EVENT_QUIT:
-                if (windowState.closeCallback) {
-                    windowState.closeCallback();
-                }
-                break;
-            default:
-                break;
-        }
-    }
-}
-
 SDL_Window* Window_getHandle() {
     return windowState.handle;
 }

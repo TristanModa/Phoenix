@@ -13,6 +13,7 @@ typedef enum buttonID : u8 {
 	BUTTON_DOWN,
 	BUTTON_LEFT,
 	BUTTON_RIGHT,
+	BUTTON_DEBUG_PANEL,
 	BUTTON_COUNT
 } ButtonID;
 
@@ -24,10 +25,11 @@ typedef struct binding {
  * The default bindings associated with each Button ID
  */
 constexpr Binding DEFAULT_BINDINGS[BUTTON_COUNT] = {
-	[BUTTON_UP]		= { .keyboard = SDL_SCANCODE_UP },
-	[BUTTON_DOWN]	= { .keyboard = SDL_SCANCODE_DOWN },
-	[BUTTON_LEFT]	= { .keyboard = SDL_SCANCODE_LEFT },
-	[BUTTON_RIGHT]	= { .keyboard = SDL_SCANCODE_RIGHT }
+	[BUTTON_UP]					= { .keyboard = SDL_SCANCODE_UP },
+	[BUTTON_DOWN]				= { .keyboard = SDL_SCANCODE_DOWN },
+	[BUTTON_LEFT]				= { .keyboard = SDL_SCANCODE_LEFT },
+	[BUTTON_RIGHT]				= { .keyboard = SDL_SCANCODE_RIGHT },
+	[BUTTON_DEBUG_PANEL]		= { .keyboard = SDL_SCANCODE_GRAVE }
 };
 
 /**

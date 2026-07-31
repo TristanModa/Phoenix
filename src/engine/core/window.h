@@ -18,11 +18,6 @@ void Window_create(const char* title, VoidFn windowCloseCallback);
 void Window_destroy();
 
 /**
- * Polls and handles window events
- */
-void Window_pollEvents();
-
-/**
  * Gets the SDL handle of the window
  * @return A pointer to the SDL handle of the window
  */
