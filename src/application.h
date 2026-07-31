@@ -1,7 +1,7 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
 
-#include "engine/types.h"
+#include "engine/core/types.h"
 #include "phoenix/phoenix.h"
 
 /**

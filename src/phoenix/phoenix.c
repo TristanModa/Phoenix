@@ -1,12 +1,10 @@
 #include "phoenix.h"
 
-#include "engine/logger.h"
-#include "engine/resources.h"
+#include "../engine/core/logger.h"
+#include "../engine/core/resources.h"
 
 void Phoenix_create() {
-    const Resource* a = Resources_getResource(RESOURCE_TYPE_TEXT, "resources/a.txt");
-    Logger_info("%s", a->text);
-    Resources_releaseResource(a);
+
 }
 
 void Phoenix_destroy() {

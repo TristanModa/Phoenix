@@ -5,18 +5,18 @@ add_executable(${PROJECT_NAME}
         application.h
         application.c
 
-		# Engine
-		engine/input.h
-		engine/input.c
-		engine/logger.c
-		engine/logger.h
-		engine/types.h
-		engine/resources.h
-		engine/resources.c
-		engine/vtime.h
-		engine/vtime.c
-		engine/window.h
-		engine/window.c
+		# Engine::Core
+		engine/core/input.h
+		engine/core/input.c
+		engine/core/logger.c
+		engine/core/logger.h
+		engine/core/types.h
+		engine/core/resources.h
+		engine/core/resources.c
+		engine/core/vtime.h
+		engine/core/vtime.c
+		engine/core/window.h
+		engine/core/window.c
 
 		# Engine::Collections
 		engine/collections/collectionsCommon.h
@@ -24,11 +24,15 @@ add_executable(${PROJECT_NAME}
 		engine/collections/arrayList.c
 		engine/collections/hashMap.h
 		engine/collections/hashMap.c
-		phoenix/phoenix.c
-		phoenix/phoenix.h
+
+		# Engine::Rendering
+		engine/rendering/colors.h
+		engine/rendering/renderer.h
+		engine/rendering/renderer.c
 
 		# Phoenix
-
+		phoenix/phoenix.h
+		phoenix/phoenix.c
 )
 
 # Configure the executable

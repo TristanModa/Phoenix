@@ -2,11 +2,12 @@
 
 #include <stdlib.h>
 
-#include "engine/input.h"
-#include "engine/logger.h"
-#include "engine/resources.h"
-#include "engine/vtime.h"
-#include "engine/window.h"
+#include "engine/core/input.h"
+#include "engine/core/logger.h"
+#include "engine/core/resources.h"
+#include "engine/core/vtime.h"
+#include "engine/core/window.h"
+#include "engine/rendering/renderer.h"
 #include "phoenix/phoenix.h"
 
 static struct {
@@ -68,8 +69,9 @@ void create() {
 
     // Create application systems
     Time_init();
-    Window_create(APPLICATION_NAME, Application_exit);
     Resources_create();
+    Window_create(APPLICATION_NAME, Application_exit);
+    Renderer_create(Window_getHandle());
 
     // Create the application
     Logger_info("Creating %s...", APPLICATION_NAME);
@@ -89,6 +91,7 @@ void destroy() {
     Logger_popIndent();
 
     // Destroy application systems
+    Renderer_destroy();
     Resources_destroy();
     Window_destroy();
 

@@ -1,5 +1,5 @@
-#ifndef ENGINE_WINDOW_H
-#define ENGINE_WINDOW_H
+#ifndef ENGINE_CORE_WINDOW_H
+#define ENGINE_CORE_WINDOW_H
 
 #include <SDL3/SDL.h>
 
@@ -38,4 +38,4 @@ void Window_show();
  */
 void Window_setVisibility(bool visible);
 
-#endif //ENGINE_WINDOW_H
+#endif //ENGINE_CORE_WINDOW_H

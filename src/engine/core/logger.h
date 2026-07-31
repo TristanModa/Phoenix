@@ -1,5 +1,5 @@
-#ifndef ENGINE_LOGGER_H
-#define ENGINE_LOGGER_H
+#ifndef ENGINE_CORE_LOGGER_H
+#define ENGINE_CORE_LOGGER_H
 
 #include <stdio.h>
 
@@ -21,14 +21,14 @@ typedef enum logLevel {
 } LogLevel;
 
 /**
- * Initializes the logger
+ * Creates the logger
  * @param logLevel The minimum log level a message must have to be written to the log
  * @param appName The name of the application the log is for
  * @param appVersion The version of the application the log is for
  */
 void Logger_create(LogLevel logLevel, const char* appName, const char* appVersion);
 /**
- * Flushes all log streams and closes the log file stream
+ * Closes the log file
  */
 void Logger_destroy();
 
@@ -109,4 +109,4 @@ const char* Logger_getLogLevelString(LogLevel logLevel);
  */
 const char* Logger_getLogLevelLabel(LogLevel logLevel);
 
-#endif //ENGINE_LOGGER_H
+#endif //ENGINE_CORE_LOGGER_H

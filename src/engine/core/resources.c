@@ -5,7 +5,7 @@
 
 #include "logger.h"
 #include "vtime.h"
-#include "collections/hashMap.h"
+#include "engine/collections/hashMap.h"
 
 typedef struct cacheEntry {
     Resource* resource;
@@ -71,15 +71,19 @@ void Resources_purgeCache() {
 }
 
 const Resource* Resources_getResource(ResourceType type, const char* path) {
+    // Construct the full path to the resource
+    char fullPath[256];
+    SDL_snprintf(fullPath, sizeof(fullPath), "%s%s", RESOURCES_BASE_PATH, path);
+
     // Load the resource and add it to the cache if it has not already been loaded
-    if (!HashMap_hasKey(resourcesState.cache, path)) {
+    if (!HashMap_hasKey(resourcesState.cache, fullPath)) {
         // Allocate and create the resource
         Resource* resource = malloc(sizeof(*resource));
         if (!resource) {
             Logger_error("Failed to create resource: Memory allocation failed");
             return nullptr;
         }
-        if (!createResource(type, path, resource)) {
+        if (!createResource(type, fullPath, resource)) {
             Logger_error("Failed to create resource: SDL Error: %s", SDL_GetError());
             free(resource);
             return nullptr;
@@ -89,7 +93,7 @@ const Resource* Resources_getResource(ResourceType type, const char* path) {
         CacheEntry cacheEntry = {
             .resource = resource
         };
-        KeyValuePair* kvp = HashMap_insertItem(resourcesState.cache, path, &cacheEntry);
+        KeyValuePair* kvp = HashMap_insertItem(resourcesState.cache, fullPath, &cacheEntry);
         if (!kvp) {
             Logger_error("Failed to load resource: Failed to create cache entry");
             return nullptr;
@@ -100,7 +104,7 @@ const Resource* Resources_getResource(ResourceType type, const char* path) {
     }
 
     // Get the resource from cache
-    CacheEntry* cacheEntry = HashMap_getItem(resourcesState.cache, path);
+    CacheEntry* cacheEntry = HashMap_getItem(resourcesState.cache, fullPath);
     assert(cacheEntry);
 
     // Increment the cache entry's reference count
@@ -137,7 +141,7 @@ bool createResource(ResourceType type, const char* path, Resource* out) {
     out->type = type;
     switch (out->type) {
         default:
-            out->data = SDL_LoadFile(path, nullptr);
+            out->data = SDL_LoadFile(path, &out->size);
             break;
     }
 

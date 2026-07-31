@@ -2,8 +2,6 @@
 
 #include <SDL3/SDL.h>
 
-#include "logger.h"
-
 constexpr float TICK_RATE = 1 / TICKS_PER_SECOND;
 
 static struct {

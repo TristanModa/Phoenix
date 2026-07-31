@@ -1,5 +1,6 @@
-#ifndef ENGINE_TYPES_H
-#define ENGINE_TYPES_H
+#ifndef ENGINE_CORE_TYPES_H
+#define ENGINE_CORE_TYPES_H
+
 #include <stdint.h>
 
 /**
@@ -41,4 +42,4 @@ typedef uint64_t u64;
  */
 typedef void (*VoidFn)();
 
-#endif //ENGINE_TYPES_H
+#endif //ENGINE_CORE_TYPES_H

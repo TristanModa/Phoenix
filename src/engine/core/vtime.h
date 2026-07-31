@@ -1,5 +1,5 @@
-#ifndef ENGINE_VTIME_H
-#define ENGINE_VTIME_H
+#ifndef ENGINE_CORE_VTIME_H
+#define ENGINE_CORE_VTIME_H
 
 #include "types.h"
 
@@ -12,6 +12,7 @@ constexpr float TICKS_PER_SECOND = 240;
  * Initializes the time subsystem
  */
 void Time_init();
+
 /**
  * Updates the time subsystem
  */
@@ -39,4 +40,4 @@ float Time_getDeltaTime();
  */
 u32 Time_getCurrentTick();
 
-#endif //ENGINE_VTIME_H
+#endif //ENGINE_CORE_VTIME_H
