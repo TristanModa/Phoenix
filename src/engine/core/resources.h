@@ -1,6 +1,8 @@
 #ifndef ENGINE_CORE_RESOURCES_H
 #define ENGINE_CORE_RESOURCES_H
 
+#include <stddef.h>
+
 #include "types.h"
 
 /**

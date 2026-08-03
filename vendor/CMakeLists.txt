@@ -1,7 +1,6 @@
 include(FetchContent)
 
 find_package(Git REQUIRED)
-find_package(Vulkan REQUIRED)
 
 # Get SDL3
 FetchContent_Declare(
@@ -55,61 +54,6 @@ FetchContent_Declare(
 		GIT_TAG			v1.92.9
 )
 FetchContent_MakeAvailable(imgui)
-
-# Get Bin2H
-#FetchContent_Declare(
-#		bin2h
-#		GIT_REPOSITORY	https://github.com/sivachandran/cmake-bin2h.git
-#		GIT_TAG			master
-#)
-#FetchContent_MakeAvailable(bin2h)
-#include("${bin2h_SOURCE_DIR}/bin2h.cmake")
-#
-## Generate embedded resources for ImGui
-#file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/embedded/")
-#set(IMGUI_EMBEDDED_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/embedded/imgui_sdl3gpu_shaders.h")
-#if (NOT EXISTS "${IMGUI_EMBEDDED_SHADER_HEADER}")
-#	# Compile shaders
-#	set(IMGUI_VERT_SPV "${CMAKE_CURRENT_BINARY_DIR}/embedded/imgui_sdl3gpu_shader.vert.spv")
-#	set(IMGUI_FRAG_SPV "${CMAKE_CURRENT_BINARY_DIR}/embedded/imgui_sdl3gpu_shader.frag.spv")
-#	execute_process(
-#			COMMAND ${Vulkan_GLSLC_EXECUTABLE}
-#			"${imgui_SOURCE_DIR}/backends/sdlgpu3/shader.vert"
-#			-o "${IMGUI_VERT_SPV}"
-#
-#			RESULT_VARIABLE VERT_RESULT
-#			ERROR_VARIABLE VERT_ERROR
-#	)
-#	execute_process(
-#			COMMAND ${Vulkan_GLSLC_EXECUTABLE}
-#			"${imgui_SOURCE_DIR}/backends/sdlgpu3/shader.frag"
-#			-o "${IMGUI_FRAG_SPV}"
-#
-#			RESULT_VARIABLE FRAG_RESULT
-#			ERROR_VARIABLE FRAG_ERROR
-#	)
-#
-#	# Check if compilation was successful
-#	if (NOT VERT_RESULT EQUAL 0)
-#		message(FATAL_ERROR "ImGui vertex shader compilation failed: ${VERT_ERROR}")
-#	elseif (NOT FRAG_RESULT EQUAL 0)
-#		message(FATAL_ERROR "ImGui fragment shader compilation failed: ${FRAG_ERROR}")
-#	endif ()
-#
-#	# Generate header
-#	bin2h(
-#			SOURCE_FILE "${IMGUI_VERT_SPV}"
-#			HEADER_FILE "${IMGUI_EMBEDDED_SHADER_HEADER}"
-#			VARIABLE_NAME "IMGUI_VERTEX_SHADER"
-#			APPEND
-#	)
-#	bin2h(
-#			SOURCE_FILE "${IMGUI_FRAG_SPV}"
-#			HEADER_FILE "${IMGUI_EMBEDDED_SHADER_HEADER}"
-#			VARIABLE_NAME "IMGUI_FRAGMENT_SHADER"
-#			APPEND
-#	)
-#endif ()
 
 # Build ImGui-C
 file(GLOB DEAR_BINDINGS_SOURCES "${dearbindings_SOURCE_DIR}/*.cpp")

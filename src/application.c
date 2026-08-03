@@ -59,7 +59,7 @@ void create() {
     };
 
     // Create the logger
-    Logger_create(LOGGER_LOG_LEVEL_DEBUG, APPLICATION_NAME, APPLICATION_VERSION);
+    Logger_create(LOG_LEVEL_DEBUG, APPLICATION_NAME, APPLICATION_VERSION);
 
     // Initialize SDL
     Logger_info("Initializing SDL...");
@@ -87,8 +87,6 @@ void create() {
         .ColorTargetFormat = SDL_GetGPUSwapchainTextureFormat(Renderer_getGPUDevice(), Window_getHandle()),
     };
     cImGui_ImplSDLGPU3_Init(&imguiInitInfo);
-
-    // Configure ImGui
     ImGuiIO* imguiIO = ImGui_GetIO();
     imguiIO->IniFilename = nullptr;
 

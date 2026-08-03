@@ -1,23 +1,44 @@
 #ifndef ENGINE_CORE_LOGGER_H
 #define ENGINE_CORE_LOGGER_H
 
-#include <stdio.h>
+#include <stddef.h>
+
+#include "types.h"
 
 /**
  * The path that log output should be written to
  */
 constexpr char LOG_PATH[] = "phoenix.log";
+/**
+ * The maximum length a log message can have including the message's formatting, newline, and null terminator
+ */
+constexpr size_t MAX_LOG_MESSAGE_LENGTH = 1024;
+/**
+ * The size of the log history buffer in bytes
+ */
+constexpr size_t LOG_HISTORY_BUFFER_SIZE = 32768;
+static_assert(MAX_LOG_MESSAGE_LENGTH <= LOG_HISTORY_BUFFER_SIZE);
+
+/**
+ * Log sink IDs for various log outputs
+ */
+typedef enum logSinkID : u8 {
+    LOG_SINK_STDOUT,    /**< Log sink for writing to stdout */
+    LOG_SINK_LOG_FILE,  /**< Log sink for writing to a log file */
+    LOG_SINK_GUI_LOG,   /**< Log sink for writing to the application's debug GUI */
+    LOG_SINK_COUNT      /**< The number of log sinks the logger supports */
+} LogSinkID;
 
 /**
  * Severity levels for log messages
  */
-typedef enum logLevel {
-    LOGGER_LOG_LEVEL_UNKNOWN, /**< Indicates an undefined or uninitialized log level */
-    LOGGER_LOG_LEVEL_DEBUG, /**< Indicates diagnostic information used for debugging purposes */
-    LOGGER_LOG_LEVEL_INFO, /**< Indicates information on expected system behavior */
-    LOGGER_LOG_LEVEL_WARNING, /**< Indicates abnormalities that do not impact execution */
-    LOGGER_LOG_LEVEL_ERROR, /**< Indicates failures that impact functionality but will not result in application termination */
-    LOGGER_LOG_LEVEL_FATAL, /**< Indicates an unrecoverable failure that will result in application termination */
+typedef enum logLevel : u8 {
+    LOG_LEVEL_UNKNOWN,  /**< Indicates an undefined or uninitialized log level */
+    LOG_LEVEL_DEBUG,    /**< Indicates diagnostic information used for debugging purposes */
+    LOG_LEVEL_INFO,     /**< Indicates information on expected system behavior */
+    LOG_LEVEL_WARNING,  /**< Indicates abnormalities that do not impact execution */
+    LOG_LEVEL_ERROR,    /**< Indicates failures that impact functionality but will not result in application termination */
+    LOG_LEVEL_FATAL,    /**< Indicates an unrecoverable failure that will result in application termination */
 } LogLevel;
 
 /**
@@ -91,22 +112,19 @@ LogLevel Logger_getLogLevel();
 void Logger_setLogLevel(LogLevel logLevel);
 
 /**
- * Gets the log timestamp for the amount of time elapsed since the application was initialized
- * @param buffer The buffer the log timestamp string should be written to
- * @param bufferSize The size of the buffer the log timestamp string should be written to
- */
-void Logger_getTimestampString(char* buffer, size_t bufferSize);
-/**
  * Gets the string representation of a log level
  * @param logLevel The log level to get the string representation of
  * @return The log level as a C string
  */
 const char* Logger_getLogLevelString(LogLevel logLevel);
+
 /**
- * Gets the string representation of a 5 character log level label
- * @param logLevel The log level to get the string representation of
- * @return The log level label as a C string
+ * Gets the log history ring buffer
+ * @param head A pointer to write the index of the head of the ring buffer
+ * @param tail A pointer to write the index of the tail of the ring buffer
+ * @param full A pointer to write whether the ring buffer is full
+ * @return A pointer to the ring buffer
  */
-const char* Logger_getLogLevelLabel(LogLevel logLevel);
+const char* Logger_getHistoryBuffer(size_t* head, size_t* tail, bool* full);
 
 #endif //ENGINE_CORE_LOGGER_H

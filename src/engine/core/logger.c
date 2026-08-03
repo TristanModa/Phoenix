@@ -1,83 +1,93 @@
 #include "logger.h"
 
-#include <errno.h>
+#include <assert.h>
+#include <dcimgui.h>
 #include <stdio.h>
 #include <mimalloc.h>
+#include <stdlib.h>
 #include <time.h>
 #include <SDL3/SDL.h>
 
-#include "types.h"
-
-constexpr char ANSI_RESET[] = "\x1B[39m";
-constexpr char ANSI_DEBUG[] = "\x1B[38;5;14m";
-constexpr char ANSI_INFO[] = "\x1B[38;5;15m";
-constexpr char ANSI_WARNING[] = "\x1B[38;5;11m";
-constexpr char ANSI_ERROR[] = "\x1B[38;5;1m";
-constexpr char ANSI_FATAL[] = "\x1B[38;5;88m";
-
-typedef enum outputStream {
-    STREAM_STDOUT,
-    STREAM_LOG_FILE,
-    STREAM_COUNT
-} OutputStream;
+typedef void (*LogSinkFn)(LogLevel, const char*, size_t);
 
 struct {
     LogLevel logLevel;
-	FILE* outputStreams[STREAM_COUNT];
+    LogSinkFn logSinks[LOG_SINK_COUNT];
+
+    FILE* logFile;
+    struct {
+        size_t head;
+        size_t tail;
+        bool full;
+        char buffer[LOG_HISTORY_BUFFER_SIZE];
+    } history;
+
 
     u64 logInitTime;
-    u32 indentationLevel;
+    u8 indentationLevel;
 } loggerState;
 
 static u64 getTimestampMS();
 static void logFormatted(LogLevel logLevel, const char* format, va_list args);
+
+static void writeStdout(LogLevel logLevel, const char* buffer, size_t n);
+static void writeLogFile(LogLevel _, const char* buffer, size_t n);
+static void writeLogHistoryBuffer(LogLevel _, const char* buffer, size_t n);
+
 static void mimallocOutputFunction(const char* msg, void* _);
 static void sdlOutputFunction(void* _, int category, SDL_LogPriority priority, const char* msg);
 
 void Logger_create(const LogLevel logLevel, const char* appName, const char* appVersion) {
-    // Set the log level
-    loggerState.logLevel = logLevel;
+    // Initialize logger state
+    loggerState = (typeof(loggerState)){
+        .logLevel = logLevel,
+        .logSinks = { writeStdout, writeLogFile, writeLogHistoryBuffer },
+        .logFile = fopen(LOG_PATH, "w"),
+        .history = { .head = 0, .tail = 0 }
+    };
 
-    // Set the stdout stream
-    loggerState.outputStreams[STREAM_STDOUT] = stdout;
-
-    // Open the log file for writing
-    loggerState.outputStreams[STREAM_LOG_FILE] = fopen(LOG_PATH, "w");
-    const int fileOpenErrorNum = errno;
-
-    // Print the log header to each output stream
-    for (int i = 0; i < STREAM_COUNT; i++) {
-        FILE* stream = loggerState.outputStreams[i];
-        if (!stream) {
-            continue;
-        }
-
-        fprintf(stream, "%s Log %s\n", appName, appVersion);
+    // Write the log header to each log sink
+    constexpr size_t HEADER_MAX_LEN = 32;
+    char logHeader[HEADER_MAX_LEN];
+    const size_t headerLength = snprintf(
+        logHeader, HEADER_MAX_LEN,
+        "%s Log %s\n", appName, appVersion);
+    for (u8 i = 0; i < LOG_SINK_COUNT; i++) {
+        loggerState.logSinks[i](LOG_LEVEL_UNKNOWN, logHeader, SDL_min(headerLength, HEADER_MAX_LEN));
     }
-
-    // Set the log init time
-    loggerState.logInitTime = getTimestampMS();
-
-    // Output log initialized
-    Logger_info("Logger initialized");
-    Logger_pushIndent();
-    if (!loggerState.outputStreams[STREAM_LOG_FILE]) {
-        Logger_error(
-            "Failed to open log file \"%s\" for writing: %s",
-            LOG_PATH, strerror(fileOpenErrorNum));
-        Logger_info("Logging to file is disabled");
-    }
-    Logger_popIndent();
 
     // Set library log output functions
     mi_register_output(mimallocOutputFunction, nullptr);
     SDL_SetLogOutputFunction(sdlOutputFunction, nullptr);
     const SDL_LogPriority sdlLogLevel = loggerState.logLevel + 2;
     SDL_SetLogPriorities(sdlLogLevel);
+
+    // Set the log init time
+    loggerState.logInitTime = getTimestampMS();
+
+    // Log initialization completion
+    Logger_info("Logger initialized");
+    if (!loggerState.logFile) {
+        Logger_pushIndent();
+        Logger_error("Failed to open %s for writing. Logging to file disabled", LOG_PATH);
+        Logger_popIndent();
+    }
 }
 
 void Logger_destroy() {
-    fclose(loggerState.outputStreams[STREAM_LOG_FILE]);
+    // Close the log file
+    if (loggerState.logFile) fclose(loggerState.logFile);
+}
+
+void Logger_addLogSink(LogSinkID sinkID, LogSinkFn sinkFn) {
+    // Return if the sink ID is invalid
+    if (sinkID >= LOG_SINK_COUNT) {
+        Logger_error("Failed to add log sink: Invalid sink ID");
+        return;
+    }
+
+    // Set the sink function
+    loggerState.logSinks[sinkID] = sinkFn;
 }
 
 void Logger_log(const LogLevel logLevel, const char* format, ...) {
@@ -98,7 +108,7 @@ void Logger_debug(const char* format, ...) {
     va_start(args, format);
 
     // Pass the log message to the general log function
-    logFormatted(LOGGER_LOG_LEVEL_DEBUG, format, args);
+    logFormatted(LOG_LEVEL_DEBUG, format, args);
 
     // End processing variable arguments
     va_end(args);
@@ -110,7 +120,7 @@ void Logger_info(const char* format, ...) {
     va_start(args, format);
 
     // Pass the log message to the general log function
-    logFormatted(LOGGER_LOG_LEVEL_INFO, format, args);
+    logFormatted(LOG_LEVEL_INFO, format, args);
 
     // End processing variable arguments
     va_end(args);
@@ -122,7 +132,7 @@ void Logger_warning(const char* format, ...) {
     va_start(args, format);
 
     // Pass the log message to the general log function
-    logFormatted(LOGGER_LOG_LEVEL_WARNING, format, args);
+    logFormatted(LOG_LEVEL_WARNING, format, args);
 
     // End processing variable arguments
     va_end(args);
@@ -134,7 +144,7 @@ void Logger_error(const char* format, ...) {
     va_start(args, format);
 
     // Pass the log message to the general log function
-    logFormatted(LOGGER_LOG_LEVEL_ERROR, format, args);
+    logFormatted(LOG_LEVEL_ERROR, format, args);
 
     // End processing variable arguments
     va_end(args);
@@ -146,7 +156,7 @@ void Logger_fatal(const char* format, ...) {
     va_start(args, format);
 
     // Pass the log message to the general log function
-    logFormatted(LOGGER_LOG_LEVEL_FATAL, format, args);
+    logFormatted(LOG_LEVEL_FATAL, format, args);
 
     // End processing variable arguments
     va_end(args);
@@ -171,55 +181,28 @@ void Logger_setLogLevel(const LogLevel logLevel) {
     loggerState.logLevel = logLevel;
 }
 
-void Logger_getTimestampString(char* buffer, const size_t bufferSize) {
-    // Get elapsed milliseconds since log init
-    const u64 elapsedMilliseconds = getTimestampMS() - loggerState.logInitTime;
-    const u64 elapsedSeconds = elapsedMilliseconds / 1000;
-
-    // Calculate time divisions
-    const u64 milliseconds = elapsedMilliseconds % 1000;
-    const u64 seconds = elapsedSeconds % 60;
-    const u64 minutes = elapsedSeconds / 60 % 60;
-    const u64 hours = elapsedSeconds / 3600;
-
-    // Write the timestamp to the buffer
-    snprintf(buffer, bufferSize,
-        "%02" PRIu64 ":%02" PRIu64 ":%02" PRIu64 ".%03" PRIu64,
-        hours, minutes, seconds, milliseconds);
-}
-
 const char* Logger_getLogLevelString(const LogLevel logLevel) {
     switch (logLevel) {
-        case LOGGER_LOG_LEVEL_DEBUG:
+        case LOG_LEVEL_DEBUG:
             return "Debug";
-        case LOGGER_LOG_LEVEL_INFO:
+        case LOG_LEVEL_INFO:
             return "Info";
-        case LOGGER_LOG_LEVEL_WARNING:
+        case LOG_LEVEL_WARNING:
             return "Warning";
-        case LOGGER_LOG_LEVEL_ERROR:
+        case LOG_LEVEL_ERROR:
             return "Error";
-        case LOGGER_LOG_LEVEL_FATAL:
+        case LOG_LEVEL_FATAL:
             return "Fatal";
         default:
             return "Unknown";
     }
 }
 
-const char* Logger_getLogLevelLabel(const LogLevel logLevel) {
-    switch (logLevel) {
-        case LOGGER_LOG_LEVEL_DEBUG:
-            return "Debug";
-        case LOGGER_LOG_LEVEL_INFO:
-            return "Info";
-        case LOGGER_LOG_LEVEL_WARNING:
-            return "Warn";
-        case LOGGER_LOG_LEVEL_ERROR:
-            return "Error";
-        case LOGGER_LOG_LEVEL_FATAL:
-            return "Fatal";
-        default:
-            return "Unkwn";
-    }
+const char* Logger_getHistoryBuffer(size_t* head, size_t* tail, bool* full) {
+    if (head) *head = loggerState.history.head;
+    if (tail) *tail = loggerState.history.tail;
+    if (full) *full = loggerState.history.full;
+    return loggerState.history.buffer;
 }
 
 u64 getTimestampMS() {
@@ -234,69 +217,135 @@ void logFormatted(const LogLevel logLevel, const char* format, va_list args) {
         return;
     }
 
-    // Get the current timestamp
-    char timestampString[14];
-    Logger_getTimestampString(timestampString, sizeof(timestampString));
+    // Get elapsed milliseconds since log init
+    const u64 elapsedMilliseconds = getTimestampMS() - loggerState.logInitTime;
+    const u64 elapsedSeconds = elapsedMilliseconds / 1000;
 
-    // Print the message to each output file
-    for (int i = 0; i < STREAM_COUNT; i++) {
-        const FILE* stream = loggerState.outputStreams[i];
-        if (!loggerState.outputStreams[i]) {
+    // Get the log level label
+    const char* logLevelLabel;
+    switch (logLevel) {
+        case LOG_LEVEL_DEBUG:
+            logLevelLabel = "Debug";
+            break;
+        case LOG_LEVEL_INFO:
+            logLevelLabel = "Info";
+            break;
+        case LOG_LEVEL_WARNING:
+            logLevelLabel = "Warn";
+            break;
+        case LOG_LEVEL_ERROR:
+            logLevelLabel = "Error";
+            break;
+        case LOG_LEVEL_FATAL:
+            logLevelLabel = "Fatal";
+            break;
+        default:
+            logLevelLabel = "Unkwn";
+            break;
+    }
+
+    // Calculate time divisions
+    const u64 milliseconds = elapsedMilliseconds % 1000;
+    const u64 seconds = elapsedSeconds % 60;
+    const u64 minutes = elapsedSeconds / 60 % 60;
+    const u64 hours = elapsedSeconds / 3600;
+
+    // Create the message buffer
+    size_t bufferPos = 0;
+    char messageBuffer[MAX_LOG_MESSAGE_LENGTH];
+    constexpr size_t MAX_CONTENT_LENGTH = sizeof(messageBuffer) - 1;
+
+    // Write the message label
+    int written = snprintf(
+        messageBuffer,
+        MAX_CONTENT_LENGTH + 1,
+        "[%-5s (%02" PRIu64 ":%02" PRIu64 ":%02" PRIu64 ".%03" PRIu64 ")]",
+        logLevelLabel,
+        hours, minutes, seconds, milliseconds);
+
+    // Add the written characters to the buffer position
+    if (written > 0) bufferPos += SDL_min((size_t)written, MAX_CONTENT_LENGTH - bufferPos);
+
+    // Write indentation
+    const size_t numSpaces = SDL_min((loggerState.indentationLevel + 1) * 4, MAX_CONTENT_LENGTH - bufferPos);
+    memset(messageBuffer + bufferPos, ' ', numSpaces);
+    bufferPos += numSpaces;
+
+    // Write the formatted message
+    written = vsnprintf(
+        messageBuffer + bufferPos,
+        MAX_CONTENT_LENGTH - bufferPos + 1,
+        format, args);
+
+    // Add the written characters to the buffer position
+    if (written > 0) bufferPos += SDL_min((size_t)written, MAX_CONTENT_LENGTH - bufferPos);
+
+    // Append newline and terminator
+    messageBuffer[bufferPos++] = '\n';
+
+    // Write message to all log sinks
+    for (u8 i = 0; i < LOG_SINK_COUNT; i++) {
+        // Skip null log sink functions
+        if (!loggerState.logSinks[i]) {
             continue;
         }
 
-        // Create a copy of va_args for the stream
-        va_list copyArgs;
-        va_copy(copyArgs, args);
-
-        // Add relevant ANSI color code if the stream is stdout
-        if (stream == stdout) {
-            const char* escapeCode;
-            switch (logLevel) {
-                case LOGGER_LOG_LEVEL_DEBUG:
-                    escapeCode = ANSI_DEBUG;
-                    break;
-                case LOGGER_LOG_LEVEL_INFO:
-                    escapeCode = ANSI_INFO;
-                    break;
-                case LOGGER_LOG_LEVEL_WARNING:
-                    escapeCode = ANSI_WARNING;
-                    break;
-                case LOGGER_LOG_LEVEL_ERROR:
-                    escapeCode = ANSI_ERROR;
-                    break;
-                case LOGGER_LOG_LEVEL_FATAL:
-                    escapeCode = ANSI_FATAL;
-                    break;
-                default:
-                    escapeCode = "";
-                    break;
-            }
-            fprintf(loggerState.outputStreams[i], "%s", escapeCode);
-        }
-
-        // Print the message label
-        fprintf(loggerState.outputStreams[i], "[%-5s (%s)]",
-            Logger_getLogLevelLabel(logLevel),
-            timestampString);
-
-        // Print indentation
-        for (int j = 0; j < loggerState.indentationLevel + 1; j++) {
-            fprintf(loggerState.outputStreams[i], "    ");
-        }
-
-        // Print the message
-        vfprintf(loggerState.outputStreams[i], format, copyArgs);
-        fprintf(loggerState.outputStreams[i], "\n");
-
-        // Print the ANSI reset code if the stream is stdout
-        if (stream == stdout) {
-            fprintf(loggerState.outputStreams[i], ANSI_RESET);
-        }
-
-        // End the args
-        va_end(copyArgs);
+        // Call the log sink function
+        loggerState.logSinks[i](logLevel, messageBuffer, bufferPos);
     }
+}
+
+void writeStdout(LogLevel logLevel, const char* buffer, size_t n) {
+    constexpr char CODE_RESET[] = "\x1B[39m";
+    constexpr char CODE_DEBUG[] = "\x1B[38;5;14m";
+    constexpr char CODE_INFO[] = "\x1B[38;5;15m";
+    constexpr char CODE_WARNING[] = "\x1B[38;5;11m";
+    constexpr char CODE_ERROR[] = "\x1B[38;5;1m";
+    constexpr char CODE_FATAL[] = "\x1B[38;5;88m";
+
+    // Write the color escape code corresponding to the log level
+    const char* escapeCode;
+    switch (logLevel) {
+        case LOG_LEVEL_DEBUG:
+            escapeCode = CODE_DEBUG;
+            break;
+        case LOG_LEVEL_INFO:
+            escapeCode = CODE_INFO;
+            break;
+        case LOG_LEVEL_WARNING:
+            escapeCode = CODE_WARNING;
+            break;
+        case LOG_LEVEL_ERROR:
+            escapeCode = CODE_ERROR;
+            break;
+        case LOG_LEVEL_FATAL:
+            escapeCode = CODE_FATAL;
+            break;
+        default:
+            escapeCode = CODE_RESET;
+            break;
+    }
+    fputs(escapeCode, stdout);
+
+    // Write the message
+    fwrite(buffer, 1, n, stdout);
+
+    // Write the reset escape code
+    fputs(CODE_RESET, stdout);
+}
+
+void writeLogFile(LogLevel _, const char* buffer, size_t n) {
+    // Return if the log file is null
+    if (!loggerState.logFile) {
+        return;
+    }
+
+    // Write the buffer
+    fwrite(buffer, 1, n, loggerState.logFile);
+}
+
+void writeLogHistoryBuffer(LogLevel _, const char* buffer, size_t n) {
+
 }
 
 void mimallocOutputFunction(const char* msg, void* _) {
@@ -347,11 +396,11 @@ void mimallocOutputFunction(const char* msg, void* _) {
     // Determine the log level of the message
     LogLevel logLevel;
     if (strstr(buffer, "warning") != nullptr) {
-        logLevel = LOGGER_LOG_LEVEL_WARNING;
+        logLevel = LOG_LEVEL_WARNING;
     } else if (strstr(buffer, "error") != nullptr) {
-        logLevel = LOGGER_LOG_LEVEL_ERROR;
+        logLevel = LOG_LEVEL_ERROR;
     } else {
-        logLevel = LOGGER_LOG_LEVEL_INFO;
+        logLevel = LOG_LEVEL_INFO;
     }
 
     // Output the message and clear the buffer

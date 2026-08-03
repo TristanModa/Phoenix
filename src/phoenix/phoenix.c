@@ -1,7 +1,12 @@
 #include "phoenix.h"
 
-void Phoenix_create() {
+#include <stdlib.h>
 
+#include "engine/core/logger.h"
+
+void Phoenix_create() {
+	void* ptr = malloc(200000000);
+	free(ptr);
 }
 
 void Phoenix_destroy() {
