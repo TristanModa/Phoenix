@@ -10,14 +10,16 @@
  */
 constexpr char LOG_PATH[] = "phoenix.log";
 /**
- * The maximum length a log message can have including the message's formatting, newline, and null terminator
+ * The maximum length a log message can have
  */
-constexpr size_t MAX_LOG_MESSAGE_LENGTH = 1024;
+constexpr size_t MAX_LOG_MESSAGE_LENGTH = 256;
 /**
  * The size of the log history buffer in bytes
  */
 constexpr size_t LOG_HISTORY_BUFFER_SIZE = 32768;
-static_assert(MAX_LOG_MESSAGE_LENGTH <= LOG_HISTORY_BUFFER_SIZE);
+
+static_assert(MAX_LOG_MESSAGE_LENGTH < LOG_HISTORY_BUFFER_SIZE);
+static_assert((LOG_HISTORY_BUFFER_SIZE - 1 & LOG_HISTORY_BUFFER_SIZE) == 0);
 
 /**
  * Log sink IDs for various log outputs
@@ -118,13 +120,7 @@ void Logger_setLogLevel(LogLevel logLevel);
  */
 const char* Logger_getLogLevelString(LogLevel logLevel);
 
-/**
- * Gets the log history ring buffer
- * @param head A pointer to write the index of the head of the ring buffer
- * @param tail A pointer to write the index of the tail of the ring buffer
- * @param full A pointer to write whether the ring buffer is full
- * @return A pointer to the ring buffer
- */
-const char* Logger_getHistoryBuffer(size_t* head, size_t* tail, bool* full);
+void Logger_beginTraverseHistoryBuffer();
+const char* Logger_getNextHistoryLine(size_t* n);
 
 #endif //ENGINE_CORE_LOGGER_H

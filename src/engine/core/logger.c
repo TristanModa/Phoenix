@@ -8,9 +8,9 @@
 #include <time.h>
 #include <SDL3/SDL.h>
 
-typedef void (*LogSinkFn)(LogLevel, const char*, size_t);
+typedef void (*LogSinkFn)(LogLevel, const char*);
 
-struct {
+static struct {
     LogLevel logLevel;
     LogSinkFn logSinks[LOG_SINK_COUNT];
 
@@ -18,10 +18,9 @@ struct {
     struct {
         size_t head;
         size_t tail;
-        bool full;
         char buffer[LOG_HISTORY_BUFFER_SIZE];
+        size_t traversePosition;
     } history;
-
 
     u64 logInitTime;
     u8 indentationLevel;
@@ -30,9 +29,9 @@ struct {
 static u64 getTimestampMS();
 static void logFormatted(LogLevel logLevel, const char* format, va_list args);
 
-static void writeStdout(LogLevel logLevel, const char* buffer, size_t n);
-static void writeLogFile(LogLevel _, const char* buffer, size_t n);
-static void writeLogHistoryBuffer(LogLevel _, const char* buffer, size_t n);
+static void writeStdout(LogLevel logLevel, const char* msg);
+static void writeLogFile(LogLevel _, const char* msg);
+static void writeLogHistoryBuffer(LogLevel _, const char* msg);
 
 static void mimallocOutputFunction(const char* msg, void* _);
 static void sdlOutputFunction(void* _, int category, SDL_LogPriority priority, const char* msg);
@@ -43,17 +42,14 @@ void Logger_create(const LogLevel logLevel, const char* appName, const char* app
         .logLevel = logLevel,
         .logSinks = { writeStdout, writeLogFile, writeLogHistoryBuffer },
         .logFile = fopen(LOG_PATH, "w"),
-        .history = { .head = 0, .tail = 0 }
+        .history = {}
     };
 
     // Write the log header to each log sink
-    constexpr size_t HEADER_MAX_LEN = 32;
-    char logHeader[HEADER_MAX_LEN];
-    const size_t headerLength = snprintf(
-        logHeader, HEADER_MAX_LEN,
-        "%s Log %s\n", appName, appVersion);
+    char logHeader[MAX_LOG_MESSAGE_LENGTH];
+    snprintf(logHeader, sizeof(logHeader), "%s Log %s", appName, appVersion);
     for (u8 i = 0; i < LOG_SINK_COUNT; i++) {
-        loggerState.logSinks[i](LOG_LEVEL_UNKNOWN, logHeader, SDL_min(headerLength, HEADER_MAX_LEN));
+        loggerState.logSinks[i](LOG_LEVEL_UNKNOWN, logHeader);
     }
 
     // Set library log output functions
@@ -198,11 +194,30 @@ const char* Logger_getLogLevelString(const LogLevel logLevel) {
     }
 }
 
-const char* Logger_getHistoryBuffer(size_t* head, size_t* tail, bool* full) {
-    if (head) *head = loggerState.history.head;
-    if (tail) *tail = loggerState.history.tail;
-    if (full) *full = loggerState.history.full;
-    return loggerState.history.buffer;
+void Logger_beginTraverseHistoryBuffer() {
+    loggerState.history.traversePosition = loggerState.history.head;
+}
+
+const char* Logger_getNextHistoryLine(size_t* n) {
+    while (loggerState.history.traversePosition < loggerState.history.tail) {
+        const size_t index = loggerState.history.traversePosition & LOG_HISTORY_BUFFER_SIZE - 1;
+        const char* begin = loggerState.history.buffer + index;
+
+        // Skip wrap padding
+        if (*begin == '\0') {
+            loggerState.history.traversePosition += LOG_HISTORY_BUFFER_SIZE - index;
+            continue;
+        }
+
+        const size_t len = strlen(begin);
+        loggerState.history.traversePosition += len + 1;
+
+        if (n) *n = len;
+        return begin;
+    }
+
+    if (n) *n = 0;
+    return nullptr;
 }
 
 u64 getTimestampMS() {
@@ -253,35 +268,28 @@ void logFormatted(const LogLevel logLevel, const char* format, va_list args) {
     // Create the message buffer
     size_t bufferPos = 0;
     char messageBuffer[MAX_LOG_MESSAGE_LENGTH];
-    constexpr size_t MAX_CONTENT_LENGTH = sizeof(messageBuffer) - 1;
 
     // Write the message label
     int written = snprintf(
         messageBuffer,
-        MAX_CONTENT_LENGTH + 1,
+        sizeof(messageBuffer),
         "[%-5s (%02" PRIu64 ":%02" PRIu64 ":%02" PRIu64 ".%03" PRIu64 ")]",
         logLevelLabel,
         hours, minutes, seconds, milliseconds);
 
     // Add the written characters to the buffer position
-    if (written > 0) bufferPos += SDL_min((size_t)written, MAX_CONTENT_LENGTH - bufferPos);
+    if (written > 0) bufferPos += SDL_min((size_t)written, MAX_LOG_MESSAGE_LENGTH - bufferPos);
 
     // Write indentation
-    const size_t numSpaces = SDL_min((loggerState.indentationLevel + 1) * 4, MAX_CONTENT_LENGTH - bufferPos);
+    const size_t numSpaces = SDL_min((loggerState.indentationLevel + 1) * 4, MAX_LOG_MESSAGE_LENGTH - bufferPos);
     memset(messageBuffer + bufferPos, ' ', numSpaces);
     bufferPos += numSpaces;
 
     // Write the formatted message
     written = vsnprintf(
         messageBuffer + bufferPos,
-        MAX_CONTENT_LENGTH - bufferPos + 1,
+        sizeof(messageBuffer) - bufferPos,
         format, args);
-
-    // Add the written characters to the buffer position
-    if (written > 0) bufferPos += SDL_min((size_t)written, MAX_CONTENT_LENGTH - bufferPos);
-
-    // Append newline and terminator
-    messageBuffer[bufferPos++] = '\n';
 
     // Write message to all log sinks
     for (u8 i = 0; i < LOG_SINK_COUNT; i++) {
@@ -291,11 +299,11 @@ void logFormatted(const LogLevel logLevel, const char* format, va_list args) {
         }
 
         // Call the log sink function
-        loggerState.logSinks[i](logLevel, messageBuffer, bufferPos);
+        loggerState.logSinks[i](logLevel, messageBuffer);
     }
 }
 
-void writeStdout(LogLevel logLevel, const char* buffer, size_t n) {
+void writeStdout(LogLevel logLevel, const char* msg) {
     constexpr char CODE_RESET[] = "\x1B[39m";
     constexpr char CODE_DEBUG[] = "\x1B[38;5;14m";
     constexpr char CODE_INFO[] = "\x1B[38;5;15m";
@@ -328,24 +336,52 @@ void writeStdout(LogLevel logLevel, const char* buffer, size_t n) {
     fputs(escapeCode, stdout);
 
     // Write the message
-    fwrite(buffer, 1, n, stdout);
+    fputs(msg, stdout);
 
     // Write the reset escape code
     fputs(CODE_RESET, stdout);
+    fputc('\n', stdout);
 }
 
-void writeLogFile(LogLevel _, const char* buffer, size_t n) {
+void writeLogFile(LogLevel _, const char* msg) {
     // Return if the log file is null
     if (!loggerState.logFile) {
         return;
     }
 
     // Write the buffer
-    fwrite(buffer, 1, n, loggerState.logFile);
+    fputs(msg, loggerState.logFile);
+    fputc('\n', loggerState.logFile);
 }
 
-void writeLogHistoryBuffer(LogLevel _, const char* buffer, size_t n) {
+void writeLogHistoryBuffer(LogLevel _, const char* msg) {
+    // Get the message length with a terminator
+    const size_t msgLen = strlen(msg) + 1;
+    assert(msgLen <= LOG_HISTORY_BUFFER_SIZE);
 
+    // Advance the tail to the start of the buffer if the message would not fit at the end
+    const size_t tailIndex = loggerState.history.tail & LOG_HISTORY_BUFFER_SIZE - 1;
+    if (tailIndex + msgLen > LOG_HISTORY_BUFFER_SIZE) {
+        memset(loggerState.history.buffer + tailIndex, 0, LOG_HISTORY_BUFFER_SIZE - tailIndex);
+        loggerState.history.tail += LOG_HISTORY_BUFFER_SIZE - tailIndex;
+    }
+
+    // Advance the head by messages until it is no longer overlapping with the tail
+    while (loggerState.history.tail - loggerState.history.head + msgLen > LOG_HISTORY_BUFFER_SIZE) {
+        const size_t headIndex = loggerState.history.head & LOG_HISTORY_BUFFER_SIZE - 1;
+        if (loggerState.history.buffer[headIndex] == '\0') {
+            loggerState.history.head += LOG_HISTORY_BUFFER_SIZE - headIndex;
+            continue;
+        }
+        loggerState.history.head += strlen(loggerState.history.buffer + headIndex) + 1;
+    }
+
+    // Write the message to the buffer
+    const size_t writePos = loggerState.history.tail & LOG_HISTORY_BUFFER_SIZE - 1;
+    memcpy(loggerState.history.buffer + writePos, msg, msgLen);
+
+    // Move the tail forward by the length of the message
+    loggerState.history.tail += msgLen;
 }
 
 void mimallocOutputFunction(const char* msg, void* _) {

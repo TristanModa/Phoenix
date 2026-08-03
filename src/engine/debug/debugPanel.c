@@ -1,7 +1,6 @@
 #include "debugPanel.h"
 
 #include <dcimgui.h>
-#include <mimalloc-stats.h>
 
 #include "engine/core/input.h"
 #include "engine/core/logger.h"
@@ -11,7 +10,7 @@ static struct {
     bool enabled;
 
     struct {
-
+    	ImGuiTextFilter filter;
     } log;
 } panelState;
 
@@ -23,7 +22,10 @@ static void drawLogTab();
 
 void DebugPanel_init() {
     // Initialize panel state
-    panelState = (typeof(panelState)){ .enabled = true };
+    panelState = (typeof(panelState)){
+    	.enabled = true,
+    };
+	ImGuiTextFilter_Build(&panelState.log.filter);
 
 	// Set the ImGui style
 	setStyle();
@@ -44,8 +46,6 @@ void DebugPanel_update() {
     if (!panelState.enabled) {
         return;
     }
-
-    // ImGui_ShowDemoWindow(nullptr);
 
     // Draw debug panel
     if (ImGui_Begin("Debug Panel", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -110,7 +110,7 @@ void setStyle() {
 	style->Colors[ImGuiCol_Text] = (ImVec4){ .x = 1.0f, .y = 1.0f, .z = 1.0f, .w = 1.0f };
 	style->Colors[ImGuiCol_TextDisabled] = (ImVec4){ .x = 0.49803922f, .y = 0.49803922f, .z = 0.49803922f, .w = 1.0f };
 	style->Colors[ImGuiCol_WindowBg] = (ImVec4){ .x = 0.05882353f, .y = 0.05882353f, .z = 0.05882353f, .w = 0.94f };
-	style->Colors[ImGuiCol_ChildBg] = (ImVec4){ .x = 0.0f, .y = 0.0f, .z = 0.0f, .w = 0.0f };
+	style->Colors[ImGuiCol_ChildBg] = (ImVec4){ .x = 0.029411765f, .y = 0.029411765f, .z = 0.029411765f, .w = 0.85f };
 	style->Colors[ImGuiCol_PopupBg] = (ImVec4){ .x = 0.078431375f, .y = 0.078431375f, .z = 0.078431375f, .w = 0.94f };
 	style->Colors[ImGuiCol_Border] = (ImVec4){ .x = 0.42745098f, .y = 0.42745098f, .z = 0.49803922f, .w = 0.5f };
 	style->Colors[ImGuiCol_BorderShadow] = (ImVec4){ .x = 0.0f, .y = 0.0f, .z = 0.0f, .w = 0.0f };
@@ -172,9 +172,73 @@ void drawPerformanceTab() {
 }
 
 void drawLogTab() {
+	// Get the width of the log window
+	const ImVec2 charSize = ImGui_CalcTextSize("A");
+	const ImVec2 windowSize = { .x = charSize.x * 80, .y = charSize.y * 20 };
 
+	// Draw the filter
+	ImGui_SetNextItemWidth(windowSize.x);
+	constexpr size_t bufSize = sizeof(panelState.log.filter.InputBuf);
+	char* buf = panelState.log.filter.InputBuf;
+	const bool valueChanged = ImGui_InputTextWithHint("##filter", "Filter", buf, bufSize, ImGuiInputTextFlags_None);
+	if (valueChanged) ImGuiTextFilter_Build(&panelState.log.filter);
 	ImGui_Separator();
 
+	// Draw the log window
+	if (ImGui_BeginChild("scrolling", windowSize, ImGuiChildFlags_None, ImGuiWindowFlags_None)) {
+		// Draw each message
+		ImGui_PushStyleVarImVec2(ImGuiStyleVar_ItemSpacing, (ImVec2){ .x = 0, .y = 0 });
+		size_t msgLen = 0;
+		const char* msg;
+		Logger_beginTraverseHistoryBuffer();
+		while ((msg = Logger_getNextHistoryLine(&msgLen))) {
+			// Skip messages that do not pass the filter
+			if (!ImGuiTextFilter_PassFilter(&panelState.log.filter, msg, msg + msgLen)) {
+				continue;
+			}
 
+			// Determine the log level of the message
+			LogLevel msgLogLevel = LOG_LEVEL_UNKNOWN;
+			if (msgLen > 2 && msg[0] == '[') {
+				switch (msg[1]) {
+					case 'D':
+						msgLogLevel = LOG_LEVEL_DEBUG;
+						break;
+					case 'I':
+						msgLogLevel = LOG_LEVEL_INFO;
+						break;
+					case 'W':
+						msgLogLevel = LOG_LEVEL_WARNING;
+						break;
+					case 'E':
+						msgLogLevel = LOG_LEVEL_ERROR;
+						break;
+					case 'F':
+						msgLogLevel = LOG_LEVEL_FATAL;
+						break;
+					default:
+						break;
+				}
+			}
 
+			// Draw the line
+			constexpr ImVec4 LOG_COLORS[] = {
+				[LOG_LEVEL_UNKNOWN]	=	(ImVec4){ .x = 0.749f, .y = 0.749f, .z = 0.749f, .w = 1.0f },
+				[LOG_LEVEL_DEBUG]	=	(ImVec4){ .x = 0.486f, .y = 0.902f, .z = 0.906f, .w = 1.0f },
+				[LOG_LEVEL_INFO]	=	(ImVec4){ .x = 1.0f,   .y = 1.0f,   .z = 1.0f,   .w = 1.0f },
+				[LOG_LEVEL_WARNING] =	(ImVec4){ .x = 0.816f, .y = 0.663f, .z = 0.298f, .w = 1.0f },
+				[LOG_LEVEL_ERROR]	=	(ImVec4){ .x = 0.988f, .y = 0.396f, .z = 0.286f, .w = 1.0f },
+				[LOG_LEVEL_FATAL]	=	(ImVec4){ .x = 0.514f, .y = 0.067f, .z = 0.039f, .w = 1.0f },
+			};
+			ImGui_PushStyleColorImVec4(ImGuiCol_Text, LOG_COLORS[msgLogLevel]);
+			ImGui_TextWrappedUnformatted(msg);
+			ImGui_PopStyleColor();
+		}
+		ImGui_PopStyleVar();
+
+		// Move the scroll to the bottom if it was at the bottom at the start of the frame
+		if (ImGui_GetScrollY() >= ImGui_GetScrollMaxY()) {
+			ImGui_SetScrollHereY(1.0f);
+		}
+	} ImGui_EndChild();
 }

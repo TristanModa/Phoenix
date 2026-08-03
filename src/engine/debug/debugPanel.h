@@ -1,7 +1,7 @@
 #ifndef ENGINE_DEBUG_DEBUGPANEL_H
 #define ENGINE_DEBUG_DEBUGPANEL_H
 
-constexpr char FONT_PATH[] = "resources/fonts/CascadiaCode.ttf";
+constexpr char FONT_PATH[] = "resources/fonts/CascadiaMono.ttf";
 
 void DebugPanel_init();
 

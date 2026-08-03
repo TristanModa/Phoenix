@@ -71,7 +71,7 @@ void Renderer_render() {
         cImGui_ImplSDLGPU3_PrepareDrawData(imDrawData, commandBuffer);
 
         // Create the render pass
-        SDL_GPUColorTargetInfo colorTargetInfo = {
+        const SDL_GPUColorTargetInfo colorTargetInfo = {
             .texture = swapchainTexture,
             .clear_color = COLOR_BLACK,
             .load_op = SDL_GPU_LOADOP_CLEAR,
