@@ -1,8 +1,5 @@
 #include "phoenix.h"
 
-#include "engine/core/logger.h"
-#include "engine/core/vtime.h"
-
 void Phoenix_create() {
 
 }

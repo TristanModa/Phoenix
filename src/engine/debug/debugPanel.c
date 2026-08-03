@@ -9,15 +9,13 @@
 static struct {
     bool enabled;
 
-    struct {
-    	ImGuiTextFilter filter;
-    } log;
+	ImGuiTextFilter logFilter;
 } panelState;
 
 static void setStyle();
 
 static void drawGeneralTab();
-static void drawPerformanceTab();
+static void drawProfiling();
 static void drawLogTab();
 
 void DebugPanel_init() {
@@ -25,7 +23,7 @@ void DebugPanel_init() {
     panelState = (typeof(panelState)){
     	.enabled = true,
     };
-	ImGuiTextFilter_Build(&panelState.log.filter);
+	ImGuiTextFilter_Build(&panelState.logFilter);
 
 	// Set the ImGui style
 	setStyle();
@@ -48,17 +46,11 @@ void DebugPanel_update() {
     }
 
     // Draw debug panel
-    if (ImGui_Begin("Debug Panel", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    if (ImGui_Begin("Debug Panel", nullptr, ImGuiWindowFlags_None)) {
         if (ImGui_BeginTabBar("Panel Tab Bar", ImGuiTabBarFlags_None)) {
             // General tab
             if (ImGui_BeginTabItem("General", nullptr, ImGuiTabItemFlags_None)) {
                 drawGeneralTab();
-                ImGui_EndTabItem();
-            }
-
-            // Performance tab
-            if (ImGui_BeginTabItem("Performance", nullptr, ImGuiTabItemFlags_None)) {
-                drawPerformanceTab();
                 ImGui_EndTabItem();
             }
 
@@ -163,29 +155,103 @@ void setStyle() {
 }
 
 void drawGeneralTab() {
-
+	drawProfiling();
 }
 
-void drawPerformanceTab() {
-	ImGui_SeparatorText("Time");
-	ImGui_Text("FPS: %f", 1.0f / Time_getDeltaTime());
+void drawProfiling() {
+	ImGui_SeparatorText("Profiling");
+	if (ImGui_BeginTable("Profiling", 4, ImGuiTableFlags_SizingFixedSame)) {
+		// Create the columns
+		const float columnWidth = ImGui_CalcTextSize("00000.00ms").x;
+		ImGui_TableSetupColumn("#name", ImGuiTableColumnFlags_None);
+		ImGui_TableSetupColumnEx("#current", ImGuiTableColumnFlags_WidthFixed, columnWidth, 0);
+		ImGui_TableSetupColumnEx("#average", ImGuiTableColumnFlags_WidthFixed, columnWidth, 0);
+		ImGui_TableSetupColumnEx("#minpeak", ImGuiTableColumnFlags_WidthFixed, columnWidth, 0);
+
+		// Draw column headers
+		ImGui_TableNextRow();
+		ImGui_TableSetColumnIndex(1);
+		ImGui_AlignTextToFramePadding();
+		ImGui_TextUnformatted("Current");
+		ImGui_TableSetColumnIndex(2);
+		ImGui_AlignTextToFramePadding();
+		ImGui_TextUnformatted("Average");
+		ImGui_TableSetColumnIndex(3);
+		ImGui_AlignTextToFramePadding();
+		ImGui_TextUnformatted("Min");
+
+		// Draw FPS label
+		ImGui_TableNextRow();
+		ImGui_TableSetColumnIndex(0);
+		ImGui_AlignTextToFramePadding();
+		ImGui_TextUnformatted("FPS");
+		ImGui_TableNextColumn();
+		ImGui_AlignTextToFramePadding();
+		ImGui_Text("%.2fFPS", 1.0f / Time_getProfiler(PROFILER_FRAME_DELTA)->current * 1000);
+		ImGui_TableNextColumn();
+		ImGui_AlignTextToFramePadding();
+		ImGui_Text("%.2fFPS", 1.0f / Time_getProfiler(PROFILER_FRAME_DELTA)->average * 1000);
+		ImGui_TableNextColumn();
+		ImGui_AlignTextToFramePadding();
+		ImGui_Text("%.2fFPS", 1.0f / Time_getProfiler(PROFILER_FRAME_DELTA)->peak * 1000);
+
+		// Skip row
+		ImGui_TableNextRow();
+		ImGui_TableSetColumnIndex(0);
+		ImGui_TextUnformatted(" ");
+
+		// Draw column headers
+		ImGui_TableNextRow();
+		ImGui_TableSetColumnIndex(1);
+		ImGui_AlignTextToFramePadding();
+		ImGui_TextUnformatted("Current");
+		ImGui_TableSetColumnIndex(2);
+		ImGui_AlignTextToFramePadding();
+		ImGui_TextUnformatted("Average");
+		ImGui_TableSetColumnIndex(3);
+		ImGui_AlignTextToFramePadding();
+		ImGui_TextUnformatted("Peak");
+
+		// Draw profilers
+		for (ProfilerID i = 0; i < PROFILER_COUNT; i++) {
+			const Profiler* profiler = Time_getProfiler(i);
+			const char* PROFILER_LABELS[PROFILER_COUNT] = {
+				"Delta",
+				"Update",
+				"Tick",
+				"Render",
+			};
+
+			ImGui_TableNextRow();
+			ImGui_TableSetColumnIndex(0);
+			ImGui_AlignTextToFramePadding();
+			ImGui_TextUnformatted(PROFILER_LABELS[i]);
+			ImGui_TableNextColumn();
+			ImGui_AlignTextToFramePadding();
+			ImGui_Text("%.2fms", profiler->current);
+			ImGui_TableNextColumn();
+			ImGui_AlignTextToFramePadding();
+			ImGui_Text("%.2fms", profiler->average);
+			ImGui_TableNextColumn();
+			ImGui_AlignTextToFramePadding();
+			ImGui_Text("%.2fms", profiler->peak);
+		}
+
+		ImGui_EndTable();
+	}
 }
 
 void drawLogTab() {
-	// Get the width of the log window
-	const ImVec2 charSize = ImGui_CalcTextSize("A");
-	const ImVec2 windowSize = { .x = charSize.x * 80, .y = charSize.y * 20 };
-
 	// Draw the filter
-	ImGui_SetNextItemWidth(windowSize.x);
-	constexpr size_t bufSize = sizeof(panelState.log.filter.InputBuf);
-	char* buf = panelState.log.filter.InputBuf;
+	ImGui_SetNextItemWidth(ImGui_GetContentRegionAvail().x);
+	constexpr size_t bufSize = sizeof(panelState.logFilter.InputBuf);
+	char* buf = panelState.logFilter.InputBuf;
 	const bool valueChanged = ImGui_InputTextWithHint("##filter", "Filter", buf, bufSize, ImGuiInputTextFlags_None);
-	if (valueChanged) ImGuiTextFilter_Build(&panelState.log.filter);
+	if (valueChanged) ImGuiTextFilter_Build(&panelState.logFilter);
 	ImGui_Separator();
 
 	// Draw the log window
-	if (ImGui_BeginChild("scrolling", windowSize, ImGuiChildFlags_None, ImGuiWindowFlags_None)) {
+	if (ImGui_BeginChild("scrolling", (ImVec2){}, ImGuiChildFlags_None, ImGuiWindowFlags_None)) {
 		// Draw each message
 		ImGui_PushStyleVarImVec2(ImGuiStyleVar_ItemSpacing, (ImVec2){ .x = 0, .y = 0 });
 		size_t msgLen = 0;
@@ -193,7 +259,7 @@ void drawLogTab() {
 		Logger_beginTraverseHistoryBuffer();
 		while ((msg = Logger_getNextHistoryLine(&msgLen))) {
 			// Skip messages that do not pass the filter
-			if (!ImGuiTextFilter_PassFilter(&panelState.log.filter, msg, msg + msgLen)) {
+			if (!ImGuiTextFilter_PassFilter(&panelState.logFilter, msg, msg + msgLen)) {
 				continue;
 			}
 

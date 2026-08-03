@@ -8,6 +8,29 @@
  */
 constexpr float TICKS_PER_SECOND = 240;
 
+constexpr float PROFILER_AVERAGE_WEIGHT = 0.05f;
+
+constexpr float PROFILER_PEAK_DECAY_HALF_LIFE = 2.0f;
+
+typedef enum profilerID : u8 {
+	PROFILER_FRAME_DELTA,
+	PROFILER_UPDATE,
+	PROFILER_TICK,
+	PROFILER_RENDER,
+	PROFILER_COUNT
+} ProfilerID;
+
+typedef struct profiler {
+	u64 startTimeNS;
+	u64 endTimeNS;
+
+	float current;
+	float average;
+	float peak;
+
+	float decayedPeak;
+} Profiler;
+
 /**
  * Initializes the time subsystem
  */
@@ -39,5 +62,9 @@ float Time_getDeltaTime();
  * @return The elapsed ticks
  */
 u32 Time_getCurrentTick();
+
+void Time_startProfiler(ProfilerID profilerID);
+void Time_endProfiler(ProfilerID profilerID);
+const Profiler* Time_getProfiler(ProfilerID profilerID);
 
 #endif //ENGINE_CORE_VTIME_H

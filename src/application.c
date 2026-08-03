@@ -132,6 +132,12 @@ void destroy() {
 }
 
 void update() {
+    // Update time
+    Time_endProfiler(PROFILER_FRAME_DELTA);
+    Time_update();
+    Time_startProfiler(PROFILER_FRAME_DELTA);
+    Time_startProfiler(PROFILER_UPDATE);
+
     // Poll SDL events
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
@@ -153,22 +159,33 @@ void update() {
     cImGui_ImplSDL3_NewFrame();
     ImGui_NewFrame();
 
-    // Update application subsystems
-    Time_update();
+    // Update engine subsystems
     Input_update();
     Resources_update();
     DebugPanel_update();
 
     // Update the application
     APPLICATION_UPDATE_CB();
+
+    // End update profiling
+    Time_endProfiler(PROFILER_UPDATE);
 }
 
 void tick() {
+    // Start tick profiling
+    Time_startProfiler(PROFILER_TICK);
+
     // Tick the application
     APPLICATION_TICK_CB();
+
+    // End tick profiling
+    Time_endProfiler(PROFILER_TICK);
 }
 
 void render() {
+    // Start render profiling
+    Time_startProfiler(PROFILER_RENDER);
+
     // Begin ImGui rendering
     ImGui_Render();
 
@@ -177,6 +194,9 @@ void render() {
 
     // Render the frame
     Renderer_render();
+
+    // End render profiling
+    Time_endProfiler(PROFILER_RENDER);
 }
 
 bool shouldTick() {

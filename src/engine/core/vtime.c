@@ -1,5 +1,6 @@
 #include "vtime.h"
 
+#include <math.h>
 #include <SDL3/SDL.h>
 
 constexpr float TICK_RATE = 1 / TICKS_PER_SECOND;
@@ -13,6 +14,8 @@ static struct {
 
     u32 currentTick;
     float tickTimer;
+
+    Profiler profilers[PROFILER_COUNT];
 } timeState;
 
 void Time_init() {
@@ -37,6 +40,29 @@ void Time_update() {
 
     // Add delta time to the tick timer
     timeState.tickTimer += timeState.deltaTime;
+
+    // Update profilers
+    for (ProfilerID i = 0; i < PROFILER_COUNT; i++) {
+        Profiler* profiler = &timeState.profilers[i];
+        const u64 timeNS = profiler->endTimeNS - profiler->startTimeNS;
+
+        // Avoid calculating delta profiling on the first frame
+        if (profiler->startTimeNS == 0) {
+            continue;
+        }
+
+        // Calculate the current, average, and peak
+        profiler->current = (float)timeNS * 1e-6f;
+        profiler->average += (profiler->current - profiler->average) * PROFILER_AVERAGE_WEIGHT;
+        if (profiler->current > profiler->decayedPeak) {
+            profiler->peak = profiler->current;
+            profiler->decayedPeak = profiler->current;
+        }
+
+        // Update the decayed peak
+        const float peakDecay = expf(-timeState.deltaTime / PROFILER_PEAK_DECAY_HALF_LIFE);
+        profiler->decayedPeak = profiler->current + (profiler->decayedPeak - profiler->current) * peakDecay;
+    }
 }
 
 bool Time_consumeTick() {
@@ -61,4 +87,16 @@ float Time_getDeltaTime() {
 
 u32 Time_getCurrentTick() {
     return timeState.currentTick;
+}
+
+void Time_startProfiler(ProfilerID profilerID) {
+    timeState.profilers[profilerID].startTimeNS = SDL_GetTicksNS();
+}
+
+void Time_endProfiler(ProfilerID profilerID) {
+    timeState.profilers[profilerID].endTimeNS = SDL_GetTicksNS();
+}
+
+const Profiler* Time_getProfiler(ProfilerID profilerID) {
+    return &timeState.profilers[profilerID];
 }
