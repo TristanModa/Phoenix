@@ -90,7 +90,7 @@ void create() {
     imguiIO->IniFilename = nullptr;
 
     // Initialize the debug panel
-    DebugPanel_init();
+    DebugPanel_init(APPLICATION_NAME, APPLICATION_VERSION);
 
     // Create the application
     Logger_info("Creating %s...", APPLICATION_NAME);

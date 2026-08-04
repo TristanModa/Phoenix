@@ -2,6 +2,8 @@
 
 #include <dcimgui.h>
 #include <float.h>
+#include <math.h>
+#include <stdio.h>
 
 #include "engine/core/input.h"
 #include "engine/core/logger.h"
@@ -9,7 +11,13 @@
 #include "engine/core/vtime.h"
 
 static struct {
+	bool show;
     bool enabled;
+
+	char windowTitle[WINDOW_TITLE_SIZE];
+
+	bool animating;
+	float windowAnimStartTime;
 
 	ImGuiTextFilter logFilter;
 } panelState;
@@ -20,11 +28,10 @@ static void drawGeneralTab();
 static void drawProfiling();
 static void drawLogTab();
 
-void DebugPanel_init() {
+void DebugPanel_init(const char* appName, const char* appVersion) {
     // Initialize panel state
-    panelState = (typeof(panelState)){
-    	.enabled = true,
-    };
+    panelState = (typeof(panelState)){};
+	snprintf(panelState.windowTitle, WINDOW_TITLE_SIZE, "Debug Panel (%s %s)", appName, appVersion);
 	ImGuiTextFilter_Build(&panelState.logFilter);
 
 	// Set the ImGui style
@@ -40,27 +47,71 @@ void DebugPanel_init() {
 		.RasterizerMultiply = 1.0f,
 		.RasterizerDensity = 1.0f,
 	};
-    const ImGuiIO* io = ImGui_GetIO();
+	ImGuiIO* io = ImGui_GetIO();
     ImFontAtlas_AddFontFromMemoryTTF(io->Fonts,
     	fontData, (int)fontDataSize,
     	16.0f, &fontConfig,
     	ImFontAtlas_GetGlyphRangesDefault(io->Fonts));
+
+	// Set additional IO properties
+	io->ConfigWindowsResizeFromEdges = false;
 }
 
 void DebugPanel_update() {
-    // Toggle the debug panel's visibility if the toggle button is pressed
+    // Toggle the panel's visibility if the toggle button is pressed
     const bool togglePressed = Input_getButtonState(BUTTON_DEBUG_PANEL)->pressed;
-    if (togglePressed) {
-        panelState.enabled = !panelState.enabled;
+    if (togglePressed && !panelState.animating) {
+        panelState.show = !panelState.show;
+    	panelState.animating = true;
+    	panelState.windowAnimStartTime = Time_getCurrentTime();
     }
 
-    // Avoid drawing when the panel is inactive
-    if (!panelState.enabled) {
-        return;
-    }
+	// Get the elapsed animation time
+	float elapsedAnimTime = Time_getCurrentTime() - panelState.windowAnimStartTime;
+	panelState.animating = elapsedAnimTime <= WINDOW_TOGGLE_ANIM_DURATION;
 
-    // Draw debug panel
-    if (ImGui_Begin("Debug Panel", nullptr, ImGuiWindowFlags_None)) {
+	// Set whether the panel is enabled
+	if (panelState.show) {
+		panelState.enabled = true;
+	} else if (!panelState.animating) {
+		panelState.enabled = false;
+	}
+
+	// Return if the panel is not enabled
+	if (!panelState.enabled) {
+		return;
+	}
+
+	// Calculate the window Y position
+	ImGuiViewport* viewport = ImGui_GetMainViewport();
+	const float offscreenPos = viewport->Pos.y - viewport->Size.y * 0.5f;
+	const float onscreenPos = viewport->Pos.y;
+	float windowPosY;
+	if (panelState.animating) {
+		const float start = panelState.show ? offscreenPos : onscreenPos;
+		const float end = panelState.show ? onscreenPos : offscreenPos;
+		const float t = SDL_min(elapsedAnimTime / WINDOW_TOGGLE_ANIM_DURATION, 1);
+		const float smoothT = 1.0f - powf(1 - t, 4);
+		windowPosY = start + (end - start) * smoothT;
+	} else {
+		windowPosY = panelState.show ? onscreenPos : offscreenPos;
+	}
+
+	// Configure panel properties
+	ImGui_SetNextWindowPos(
+		(ImVec2){ .x = viewport->Pos.x, .y = windowPosY },
+		ImGuiCond_Always);
+	ImGui_SetNextWindowSize((ImVec2){ .x = viewport->Size.x, .y = 0 }, ImGuiCond_Always);
+	ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove |
+		ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar;
+	flags |= ImGuiWindowFlags_NoInputs * panelState.animating;
+
+	// Draw the debug panel
+	ImGui_PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    if (ImGui_Begin(panelState.windowTitle, nullptr, flags)) {
+    	ImGui_PopStyleVar();
+
+    	// Draw the tab bar
         if (ImGui_BeginTabBar("Panel Tab Bar", ImGuiTabBarFlags_None)) {
             // General tab
             if (ImGui_BeginTabItem("General", nullptr, ImGuiTabItemFlags_None)) {
@@ -256,16 +307,9 @@ void drawProfiling() {
 }
 
 void drawLogTab() {
-	// Draw the filter
-	ImGui_SetNextItemWidth(ImGui_GetContentRegionAvail().x);
-	constexpr size_t bufSize = sizeof(panelState.logFilter.InputBuf);
-	char* buf = panelState.logFilter.InputBuf;
-	const bool valueChanged = ImGui_InputTextWithHint("##filter", "Filter", buf, bufSize, ImGuiInputTextFlags_None);
-	if (valueChanged) ImGuiTextFilter_Build(&panelState.logFilter);
-	ImGui_Separator();
-
 	// Draw the log window
-	if (ImGui_BeginChild("scrolling", (ImVec2){}, ImGuiChildFlags_None, ImGuiWindowFlags_None)) {
+	float charHeight = ImGui_GetTextLineHeight();
+	if (ImGui_BeginChild("scrolling", (ImVec2){ .x = 0, .y = charHeight * 16 }, ImGuiChildFlags_None, ImGuiWindowFlags_None)) {
 		// Draw each message
 		ImGui_PushStyleVarImVec2(ImGuiStyleVar_ItemSpacing, (ImVec2){ .x = 0, .y = 0 });
 		size_t msgLen = 0;
@@ -321,4 +365,12 @@ void drawLogTab() {
 			ImGui_SetScrollHereY(1.0f);
 		}
 	} ImGui_EndChild();
+	ImGui_Separator();
+
+	// Draw the filter
+	ImGui_SetNextItemWidth(ImGui_GetContentRegionAvail().x);
+	constexpr size_t bufSize = sizeof(panelState.logFilter.InputBuf);
+	char* buf = panelState.logFilter.InputBuf;
+	const bool valueChanged = ImGui_InputTextWithHint("##filter", "Filter", buf, bufSize, ImGuiInputTextFlags_None);
+	if (valueChanged) ImGuiTextFilter_Build(&panelState.logFilter);
 }
