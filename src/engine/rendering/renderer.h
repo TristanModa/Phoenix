@@ -4,6 +4,11 @@
 #include <SDL3/SDL.h>
 
 #include "colors.h"
+#include "engine/core/types.h"
+
+constexpr u32 TARGET_TEXTURE_DISPLAY_WIDTH = 640;
+constexpr u32 TARGET_TEXTURE_DISPLAY_HEIGHT = 360;
+constexpr u32 TARGET_TEXTURE_PADDING = 2;
 
 constexpr size_t MAX_DEBUG_LINE_COUNT = 2048;
 static_assert(MAX_DEBUG_LINE_COUNT % 2 == 0);

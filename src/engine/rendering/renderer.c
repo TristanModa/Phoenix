@@ -7,7 +7,9 @@
 #include "colors.h"
 #include "engine/core/logger.h"
 #include "engine/core/resources.h"
-#include "engine/core/vtime.h"
+
+constexpr u32 TARGET_TEXTURE_WIDTH = TARGET_TEXTURE_DISPLAY_WIDTH + TARGET_TEXTURE_PADDING;
+constexpr u32 TARGET_TEXTURE_HEIGHT = TARGET_TEXTURE_DISPLAY_HEIGHT + TARGET_TEXTURE_PADDING;
 
 typedef struct debugLine {
     float x1, y1, x2, y2;
@@ -22,6 +24,9 @@ typedef struct debugLineVertex {
 static struct {
     SDL_GPUDevice* gpuDevice;
     SDL_Window* windowHandle;
+
+    SDL_GPUTextureFormat renderTargetFormat;
+    SDL_GPUTexture* renderTarget;
 
     struct {
         size_t lineCount;
@@ -70,6 +75,24 @@ void Renderer_create(SDL_Window* windowHandle) {
         exit(EXIT_FAILURE);
     }
 
+    // Create the target texture
+    renderState.renderTargetFormat = SDL_GetGPUSwapchainTextureFormat(renderState.gpuDevice, renderState.windowHandle);
+    const SDL_GPUTextureCreateInfo targetTextureCreateInfo = {
+        .type = SDL_GPU_TEXTURETYPE_2D,
+        .format = renderState.renderTargetFormat,
+        .usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET,
+        .width = TARGET_TEXTURE_WIDTH,
+        .height = TARGET_TEXTURE_HEIGHT,
+        .layer_count_or_depth = 1,
+        .num_levels = 1,
+        .sample_count = SDL_GPU_SAMPLECOUNT_1
+    };
+    renderState.renderTarget = SDL_CreateGPUTexture(renderState.gpuDevice, &targetTextureCreateInfo);
+    if (!renderState.renderTarget) {
+        Logger_fatal("Failed to create target texture: SDL error: %s", SDL_GetError());
+        exit(EXIT_FAILURE);
+    }
+
     // Create the debug lines renderer
     createDebugLinesRenderer();
 
@@ -104,21 +127,30 @@ void Renderer_render() {
         uploadDebugLineData(commandBuffer);
         uploadImGuiRenderData(commandBuffer);
 
-        // Create the render pass
-        const SDL_GPUColorTargetInfo colorTargetInfo = {
-            .texture = swapchainTexture,
-            .clear_color = COLOR_BLACK,
-            .load_op = SDL_GPU_LOADOP_CLEAR,
-            .store_op = SDL_GPU_STOREOP_STORE
-        };
-        SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorTargetInfo, 1, nullptr);
+        // Perform the target texture render pass
+        SDL_GPURenderPass* targetTextureRenderPass = SDL_BeginGPURenderPass(
+            commandBuffer,
+            &(SDL_GPUColorTargetInfo){
+                .texture = renderState.renderTarget,
+                .clear_color = COLOR_BLACK,
+                .load_op = SDL_GPU_LOADOP_CLEAR,
+                .store_op = SDL_GPU_STOREOP_STORE
+            },
+            1, nullptr);
+        renderDebugLines(targetTextureRenderPass);
+        SDL_EndGPURenderPass(targetTextureRenderPass);
 
-        // Render
-        renderDebugLines(renderPass);
-        renderImGui(commandBuffer, renderPass);
-
-        // End the render pass
-        SDL_EndGPURenderPass(renderPass);
+        // Perform the swapchain render pass
+        SDL_GPURenderPass* swapchainRenderPass = SDL_BeginGPURenderPass(
+            commandBuffer,
+            &(SDL_GPUColorTargetInfo){
+                .texture = swapchainTexture,
+                .load_op = SDL_GPU_LOADOP_DONT_CARE,
+                .store_op = SDL_GPU_STOREOP_STORE
+            },
+            1, nullptr);
+        renderImGui(commandBuffer, swapchainRenderPass);
+        SDL_EndGPURenderPass(swapchainRenderPass);
     }
 
     // Submit the command buffer
@@ -174,7 +206,7 @@ void createDebugLinesRenderer() {
         .target_info = {
             .num_color_targets = 1,
             .color_target_descriptions = (SDL_GPUColorTargetDescription[]) {{
-                .format = SDL_GetGPUSwapchainTextureFormat(renderState.gpuDevice, renderState.windowHandle),
+                .format = renderState.renderTargetFormat,
             }},
         },
         .vertex_input_state = {
