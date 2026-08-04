@@ -1,7 +1,18 @@
 include(FetchContent)
 
 # Get DXC
-find_package(Vulkan REQUIRED COMPONENTS dxc)
+if (WIN32)
+    find_package(Vulkan REQUIRED COMPONENTS dxc)
+    set(DXC_EXECUTABLE "${Vulkan_dxc_EXECUTABLE}")
+else ()
+    # Get latest Vulkan
+    FetchContent_Declare(
+            vulkan
+            URL         "https://sdk.lunarg.com/sdk/download/latest/linux/vulkan_sdk.tar.xz"
+    )
+    FetchContent_MakeAvailable(vulkan)
+    set(DXC_EXECUTABLE "${vulkan_SOURCE_DIR}/x86_64/bin/dxc")
+endif ()
 
 # Glob all shader sources
 set(SHADER_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shader-src")
@@ -28,21 +39,22 @@ foreach (SHADER ${SHADER_SOURCE_FILES})
 
     add_custom_command(
             OUTPUT "${COMPILED_SHADER}"
-            COMMAND "${Vulkan_dxc_EXECUTABLE}" -spirv -T "${SHADER_TYPE}_6_0" -E main "${SHADER_SRC_DIR}/${SHADER}" -Fo "${COMPILED_SHADER}"
+            COMMAND "${DXC_EXECUTABLE}" -spirv -T "${SHADER_TYPE}_6_0" -E main "${SHADER_SRC_DIR}/${SHADER}" -Fo "${COMPILED_SHADER}"
             DEPENDS "${SHADER_SRC_DIR}/${SHADER}"
             VERBATIM
     )
     list(APPEND COMPILED_SHADERS ${COMPILED_SHADER})
 endforeach ()
+
+# Delete any orphaned shaders
+file(GLOB EXISTING_OUTPUTS "${DEST_DIR}/*.spv")
+foreach(FILE ${EXISTING_OUTPUTS})
+    if(NOT FILE IN_LIST COMPILED_SHADERS)
+        file(REMOVE "${FILE}")
+    endif()
+endforeach()
+
 add_custom_target(CompileShaders ALL DEPENDS ${COMPILED_SHADERS})
-add_custom_command(
-        TARGET CompileShaders PRE_BUILD
-        COMMAND ${CMAKE_COMMAND}
-        -D "DEST_DIR=${SHADER_DEST_DIR}"
-        -D "VALID_OUTPUTS=${COMPILED_SHADERS}"
-        -P "${CMAKE_CURRENT_SOURCE_DIR}/CleanOrphanedShaders.cmake"
-        COMMENT "Cleaning up orphaned compiled shaders..."
-)
 
 # Get ImGui
 FetchContent_Declare(

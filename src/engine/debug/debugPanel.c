@@ -167,7 +167,7 @@ void setStyle() {
 	style->Colors[ImGuiCol_Text] = (ImVec4){ .x = 1.0f, .y = 1.0f, .z = 1.0f, .w = 1.0f };
 	style->Colors[ImGuiCol_TextDisabled] = (ImVec4){ .x = 0.49803922f, .y = 0.49803922f, .z = 0.49803922f, .w = 1.0f };
 	style->Colors[ImGuiCol_WindowBg] = (ImVec4){ .x = 0.05882353f, .y = 0.05882353f, .z = 0.05882353f, .w = 0.94f };
-	style->Colors[ImGuiCol_ChildBg] = (ImVec4){ .x = 0.029411765f, .y = 0.029411765f, .z = 0.029411765f, .w = 0.85f };
+	style->Colors[ImGuiCol_ChildBg] = (ImVec4){ .x = 0.029411765f, .y = 0.029411765f, .z = 0.029411765f, .w = 0.66f };
 	style->Colors[ImGuiCol_PopupBg] = (ImVec4){ .x = 0.078431375f, .y = 0.078431375f, .z = 0.078431375f, .w = 0.94f };
 	style->Colors[ImGuiCol_Border] = (ImVec4){ .x = 0.42745098f, .y = 0.42745098f, .z = 0.49803922f, .w = 0.5f };
 	style->Colors[ImGuiCol_BorderShadow] = (ImVec4){ .x = 0.0f, .y = 0.0f, .z = 0.0f, .w = 0.0f };

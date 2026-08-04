@@ -1,7 +1,0 @@
-file(GLOB EXISTING_OUTPUTS "${DEST_DIR}/*.spv")
-foreach(FILE ${EXISTING_OUTPUTS})
-    if(NOT FILE IN_LIST VALID_OUTPUTS)
-        file(REMOVE "${FILE}")
-        message(STATUS "Removed orphaned shader: ${FILE}")
-    endif()
-endforeach()

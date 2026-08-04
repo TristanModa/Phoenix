@@ -7,7 +7,6 @@
 
 #include "engine/core/input.h"
 #include "engine/core/logger.h"
-#include "engine/core/resources.h"
 #include "engine/core/vtime.h"
 #include "engine/core/window.h"
 #include "engine/debug/debugPanel.h"

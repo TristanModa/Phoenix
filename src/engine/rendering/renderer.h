@@ -3,7 +3,10 @@
 
 #include <SDL3/SDL.h>
 
-constexpr size_t DEBUG_LINE_BUFFER_SIZE = 2048;
+#include "colors.h"
+
+constexpr size_t MAX_DEBUG_LINE_COUNT = 2048;
+static_assert(MAX_DEBUG_LINE_COUNT % 2 == 0);
 
 /**
  * Creates the renderer
@@ -25,5 +28,10 @@ void Renderer_render();
  * @return The GPU device
  */
 SDL_GPUDevice* Renderer_getGPUDevice();
+
+/**
+ * Adds a debug line to the debug lines list and draws it this frame
+ */
+void Renderer_drawDebugLine(float x1, float y1, float x2, float y2, Color color);
 
 #endif //ENGINE_RENDERING_RENDERER_H

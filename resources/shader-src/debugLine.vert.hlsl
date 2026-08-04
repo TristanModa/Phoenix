@@ -1,20 +1,20 @@
+struct VSInput {
+    float2 position : POSITION;
+	float4 color    : COLOR0;
+};
+
 struct VSOutput {
     float4 position : SV_Position;
     float4 color    : TEXCOORD0;
 };
 
 [shader("vertex")]
-VSOutput main(uint vertexIndex : SV_VertexID) {
+VSOutput main(VSInput input, uint vertexID : SV_VertexID) {
     VSOutput output;
-    if (vertexIndex == 0) {
-        output.position = float4(-1, -1, 0, 1);
-        output.color    = float4(1, 0, 0, 1);
-    } else if (vertexIndex == 1) {
-        output.position = float4(1, -1, 0, 1);
-        output.color    = float4(0, 1, 0, 1);
-    } else {
-        output.position = float4(0, 1, 0, 1);
-        output.color    = float4(0, 0, 1, 1);
-    }
+
+    float z = vertexID / 1e-6f;
+    output.position = float4(input.position, z, 1.0f);
+    output.color = input.color;
+
     return output;
 }
