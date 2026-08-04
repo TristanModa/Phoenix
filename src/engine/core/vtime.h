@@ -10,7 +10,7 @@ constexpr float TICKS_PER_SECOND = 240;
 
 constexpr float PROFILER_AVERAGE_WEIGHT = 0.05f;
 
-constexpr float PROFILER_PEAK_DECAY_HALF_LIFE = 2.0f;
+constexpr float PROFILER_PEAK_DECAY_HALF_LIFE = 5.0f;
 
 typedef enum profilerID : u8 {
 	PROFILER_FRAME_DELTA,

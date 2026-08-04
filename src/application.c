@@ -73,7 +73,6 @@ void create() {
 
     // Create application systems
     Time_init();
-    Resources_create();
     Window_create(APPLICATION_NAME, Application_exit);
     Renderer_create(Window_getHandle());
     Input_init();
@@ -118,7 +117,6 @@ void destroy() {
 
     // Destroy application systems
     Renderer_destroy();
-    Resources_destroy();
     Window_destroy();
 
     // Quit SDL
@@ -161,7 +159,6 @@ void update() {
 
     // Update engine subsystems
     Input_update();
-    Resources_update();
     DebugPanel_update();
 
     // Update the application

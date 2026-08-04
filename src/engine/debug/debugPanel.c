@@ -1,9 +1,11 @@
 #include "debugPanel.h"
 
 #include <dcimgui.h>
+#include <float.h>
 
 #include "engine/core/input.h"
 #include "engine/core/logger.h"
+#include "engine/core/resources.h"
 #include "engine/core/vtime.h"
 
 static struct {
@@ -29,8 +31,20 @@ void DebugPanel_init() {
 	setStyle();
 
     // Load the debug panel font
+	size_t fontDataSize;
+	void* fontData = Resources_get(FONTS__CASCADIA_MONO, &fontDataSize);
+	ImFontConfig fontConfig = {
+		.FontDataOwnedByAtlas = false,
+		.ExtraSizeScale = 1.0f,
+		.GlyphMaxAdvanceX = FLT_MAX,
+		.RasterizerMultiply = 1.0f,
+		.RasterizerDensity = 1.0f,
+	};
     const ImGuiIO* io = ImGui_GetIO();
-    ImFontAtlas_AddFontFromFileTTF(io->Fonts, FONT_PATH, 16.0f, nullptr, ImFontAtlas_GetGlyphRangesDefault(io->Fonts));
+    ImFontAtlas_AddFontFromMemoryTTF(io->Fonts,
+    	fontData, (int)fontDataSize,
+    	16.0f, &fontConfig,
+    	ImFontAtlas_GetGlyphRangesDefault(io->Fonts));
 }
 
 void DebugPanel_update() {

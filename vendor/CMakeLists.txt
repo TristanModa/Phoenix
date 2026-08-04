@@ -75,9 +75,9 @@ target_include_directories(ImGui-C PUBLIC
 		"${imgui_SOURCE_DIR}/backends"
 )
 
-# Create the vendor interface
-add_library(vendor INTERFACE)
-target_link_libraries(vendor INTERFACE
+# Create the Vendor interface
+add_library(Vendor INTERFACE)
+target_link_libraries(Vendor INTERFACE
 		SDL3::SDL3
 		mimalloc-static
 		CollectionsC

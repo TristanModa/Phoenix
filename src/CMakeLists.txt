@@ -46,6 +46,5 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         VERSION_PATCH="${PROJECT_VERSION_PATCH}"
 		$<$<CONFIG:Debug>:DEBUG>
 )
-target_link_libraries(${PROJECT_NAME} PRIVATE vendor)
+target_link_libraries(${PROJECT_NAME} PRIVATE Vendor Resources)
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_SOURCE_DIR}/src")
-add_dependencies(${PROJECT_NAME} SyncResources)
