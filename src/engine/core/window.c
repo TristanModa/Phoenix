@@ -14,7 +14,7 @@ void Window_create(const char* title, const VoidFn windowCloseCallback) {
     Logger_pushIndent();
 
     // Create the window handle
-    windowState.handle = SDL_CreateWindow(title, 1280, 720, SDL_WINDOW_HIDDEN);
+    windowState.handle = SDL_CreateWindow(title, 1280, 720, SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE);
     if (!windowState.handle) {
         Logger_error("Failed to create window: SDL Error: %s", SDL_GetError());
         exit(EXIT_FAILURE);

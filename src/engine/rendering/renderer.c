@@ -1,15 +1,13 @@
 #include "renderer.h"
 
 #include <dcimgui.h>
+#include <math.h>
 #include <backends/dcimgui_impl_sdlgpu3.h>
 #include <stdlib.h>
 
 #include "colors.h"
 #include "engine/core/logger.h"
 #include "engine/core/resources.h"
-
-constexpr u32 TARGET_TEXTURE_WIDTH = TARGET_TEXTURE_DISPLAY_WIDTH + TARGET_TEXTURE_PADDING;
-constexpr u32 TARGET_TEXTURE_HEIGHT = TARGET_TEXTURE_DISPLAY_HEIGHT + TARGET_TEXTURE_PADDING;
 
 typedef struct debugLine {
     float x1, y1, x2, y2;
@@ -25,8 +23,15 @@ static struct {
     SDL_GPUDevice* gpuDevice;
     SDL_Window* windowHandle;
 
-    SDL_GPUTextureFormat renderTargetFormat;
-    SDL_GPUTexture* renderTarget;
+    SDL_GPUTextureFormat virtualDisplayTargetFormat;
+    SDL_GPUTexture* virtualDisplayTarget;
+
+    struct {
+        float x;
+        float xFractional;
+        float y;
+        float yFractional;
+    } cameraPosition;
 
     struct {
         size_t lineCount;
@@ -38,12 +43,15 @@ static struct {
     } debugLineRenderer;
 } renderState;
 
-static SDL_GPUShader* createShader(ResourceID resourceID, SDL_GPUShaderStage stage);
+static SDL_GPUShader* createShader(ResourceID resourceID, SDL_GPUShaderStage stage, int numSamplers,
+    int numStorageTextures, int numStorageBuffers, int numUniformBuffers);
+
+static void blitVirtualDisplayToSwapchain(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* swapchainTexture);
 
 static void createDebugLinesRenderer();
 static void destroyDebugLinesRenderer();
 static void uploadDebugLineData(SDL_GPUCommandBuffer* commandBuffer);
-static void renderDebugLines(SDL_GPURenderPass* renderPass);
+static void renderDebugLines(SDL_GPURenderPass *renderPass);
 
 static void uploadImGuiRenderData(SDL_GPUCommandBuffer* commandBuffer);
 static void renderImGui(SDL_GPUCommandBuffer* commandBuffer, SDL_GPURenderPass* renderPass);
@@ -75,33 +83,42 @@ void Renderer_create(SDL_Window* windowHandle) {
         exit(EXIT_FAILURE);
     }
 
-    // Create the target texture
-    renderState.renderTargetFormat = SDL_GetGPUSwapchainTextureFormat(renderState.gpuDevice, renderState.windowHandle);
-    const SDL_GPUTextureCreateInfo targetTextureCreateInfo = {
+    // Create the virtual display target
+    renderState.virtualDisplayTargetFormat = SDL_GetGPUSwapchainTextureFormat(
+        renderState.gpuDevice, renderState.windowHandle);
+    SDL_GPUTextureCreateInfo textureCreateInfo = {
         .type = SDL_GPU_TEXTURETYPE_2D,
-        .format = renderState.renderTargetFormat,
-        .usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET,
-        .width = TARGET_TEXTURE_WIDTH,
-        .height = TARGET_TEXTURE_HEIGHT,
+        .format = renderState.virtualDisplayTargetFormat,
+        .width = VIRTUAL_DISPLAY_WIDTH + 1,
+        .height = VIRTUAL_DISPLAY_HEIGHT + 1,
         .layer_count_or_depth = 1,
         .num_levels = 1,
-        .sample_count = SDL_GPU_SAMPLECOUNT_1
+        .usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER
     };
-    renderState.renderTarget = SDL_CreateGPUTexture(renderState.gpuDevice, &targetTextureCreateInfo);
-    if (!renderState.renderTarget) {
-        Logger_fatal("Failed to create target texture: SDL error: %s", SDL_GetError());
+    renderState.virtualDisplayTarget = SDL_CreateGPUTexture(renderState.gpuDevice, &textureCreateInfo);
+    if (!renderState.virtualDisplayTarget) {
+        Logger_fatal("Failed to create virtual display target: SDL error: %s", SDL_GetError());
         exit(EXIT_FAILURE);
     }
 
-    // Create the debug lines renderer
+    // Create renderers
     createDebugLinesRenderer();
 
     Logger_popIndent();
 }
 
 void Renderer_destroy() {
+    // Wait for the GPU to idle
     SDL_WaitForGPUIdle(renderState.gpuDevice);
+
+    // Destroy renderers
     destroyDebugLinesRenderer();
+
+    // Release GPU resources
+    SDL_ReleaseGPUTexture(renderState.gpuDevice, renderState.virtualDisplayTarget);
+    SDL_ReleaseWindowFromGPUDevice(renderState.gpuDevice, renderState.windowHandle);
+
+    // Destroy GPU device
     SDL_DestroyGPUDevice(renderState.gpuDevice);
 }
 
@@ -127,25 +144,39 @@ void Renderer_render() {
         uploadDebugLineData(commandBuffer);
         uploadImGuiRenderData(commandBuffer);
 
-        // Perform the target texture render pass
-        SDL_GPURenderPass* targetTextureRenderPass = SDL_BeginGPURenderPass(
+        // Begin the virtual display render pass
+        SDL_GPURenderPass* virtualDisplayRenderPass = SDL_BeginGPURenderPass(
             commandBuffer,
             &(SDL_GPUColorTargetInfo){
-                .texture = renderState.renderTarget,
-                .clear_color = COLOR_BLACK,
+                .texture = renderState.virtualDisplayTarget,
                 .load_op = SDL_GPU_LOADOP_CLEAR,
                 .store_op = SDL_GPU_STOREOP_STORE
             },
             1, nullptr);
-        renderDebugLines(targetTextureRenderPass);
-        SDL_EndGPURenderPass(targetTextureRenderPass);
+
+        // Push the transformation matrix
+        float matrix[16] = {};
+        matrix[0]  = 2.0f / (float)VIRTUAL_DISPLAY_WIDTH;
+        matrix[5]  = 2.0f / (float)VIRTUAL_DISPLAY_HEIGHT;
+        matrix[10] = 1.0f;
+        matrix[12] = -(2.0f * renderState.cameraPosition.x / (float)VIRTUAL_DISPLAY_WIDTH) - 1.0f;
+        matrix[13] = -(2.0f * renderState.cameraPosition.y / (float)VIRTUAL_DISPLAY_HEIGHT) - 1.0f;
+        matrix[15] = 1.0f;
+        SDL_PushGPUVertexUniformData(commandBuffer, 0, &matrix, sizeof(matrix));
+        renderDebugLines(virtualDisplayRenderPass);
+
+        // End the virtual display render pass
+        SDL_EndGPURenderPass(virtualDisplayRenderPass);
+
+        // Blit the virtual display to the swapchain texture
+        blitVirtualDisplayToSwapchain(commandBuffer, swapchainTexture);
 
         // Perform the swapchain render pass
         SDL_GPURenderPass* swapchainRenderPass = SDL_BeginGPURenderPass(
             commandBuffer,
             &(SDL_GPUColorTargetInfo){
                 .texture = swapchainTexture,
-                .load_op = SDL_GPU_LOADOP_DONT_CARE,
+                .load_op = SDL_GPU_LOADOP_LOAD,
                 .store_op = SDL_GPU_STOREOP_STORE
             },
             1, nullptr);
@@ -161,10 +192,20 @@ SDL_GPUDevice* Renderer_getGPUDevice() {
     return renderState.gpuDevice;
 }
 
+void Renderer_setCameraPosition(float x, float y) {
+    float flooredX = floorf(x);
+    float flooredY = floorf(y);
+
+    renderState.cameraPosition.x = flooredX;
+    renderState.cameraPosition.xFractional = x - flooredX;
+    renderState.cameraPosition.y = flooredY;
+    renderState.cameraPosition.yFractional = y - flooredY;
+}
+
 void Renderer_drawDebugLine(float x1, float y1, float x2, float y2, Color color) {
     // Return if the lines array is full
     if (renderState.debugLineRenderer.lineCount >= MAX_DEBUG_LINE_COUNT) {
-        Logger_warning("Could not draw debug line: maximum debug line count of %zu reached", MAX_DEBUG_LINE_COUNT);
+        Logger_warning("Could not draw debug line: Maximum debug line count of %zu reached", MAX_DEBUG_LINE_COUNT);
         return;
     }
 
@@ -179,7 +220,8 @@ void Renderer_drawDebugLine(float x1, float y1, float x2, float y2, Color color)
     renderState.debugLineRenderer.lineCount++;
 }
 
-SDL_GPUShader* createShader(ResourceID resourceID, SDL_GPUShaderStage stage) {
+SDL_GPUShader* createShader(ResourceID resourceID, SDL_GPUShaderStage stage, int numSamplers, int numStorageTextures,
+    int numStorageBuffers, int numUniformBuffers) {
     size_t shaderCodeSize;
     void* shaderCode = Resources_get(resourceID, &shaderCodeSize);
     const SDL_GPUShaderCreateInfo createInfo = {
@@ -188,16 +230,75 @@ SDL_GPUShader* createShader(ResourceID resourceID, SDL_GPUShaderStage stage) {
         .entrypoint = "main",
         .format = SDL_GPU_SHADERFORMAT_SPIRV,
         .stage = stage,
+        .num_samplers = numSamplers,
+        .num_storage_textures = numStorageTextures,
+        .num_storage_buffers = numStorageBuffers,
+        .num_uniform_buffers = numUniformBuffers
     };
     return SDL_CreateGPUShader(renderState.gpuDevice, &createInfo);
 }
 
+void blitVirtualDisplayToSwapchain(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* swapchainTexture) {
+    // Get the window size and aspect ratio
+    int windowWidth, windowHeight;
+    SDL_GetWindowSize(renderState.windowHandle, &windowWidth, &windowHeight);
+    const float windowAspectRatio = (float)windowWidth / (float)windowHeight;
+
+    // Calculate the scaling factor
+    float scale;
+    if (windowAspectRatio < VIRTUAL_DISPLAY_ASPECT_RATIO) {
+        scale = (float)windowWidth / VIRTUAL_DISPLAY_WIDTH;
+    } else {
+        scale = (float)windowHeight / VIRTUAL_DISPLAY_HEIGHT;
+    }
+
+    // Get the destination position offset
+    SDL_Point offset = {
+        .x = (int)(renderState.cameraPosition.xFractional * scale),
+        .y = (int)(renderState.cameraPosition.yFractional * scale)
+    };
+
+    // Calculate the destination rect
+    SDL_Rect dst;
+    dst.w = (int)((VIRTUAL_DISPLAY_WIDTH + 1) * scale);
+    dst.h = (int)((VIRTUAL_DISPLAY_HEIGHT + 1) * scale);
+    dst.x = -offset.x;
+    dst.y = offset.y;
+
+    // Clamp the destination rect so it is in bounds
+
+
+    // Blit the virtual display to the swapchain
+    SDL_GPUBlitInfo blitInfo = {
+        .source = {
+            .texture = renderState.virtualDisplayTarget,
+            .w = VIRTUAL_DISPLAY_WIDTH,
+            .h = VIRTUAL_DISPLAY_HEIGHT,
+        },
+        .destination = {
+            .texture = swapchainTexture,
+            .x = dst.x,
+            .y = dst.y,
+            .w = dst.w,
+            .h = dst.h,
+        },
+        .filter = SDL_GPU_FILTER_NEAREST,
+        .clear_color = COLOR_RED_DARK,
+        .load_op = SDL_GPU_LOADOP_CLEAR
+    };
+    SDL_BlitGPUTexture(commandBuffer, &blitInfo);
+}
+
 void createDebugLinesRenderer() {
     // Create shaders
-    SDL_GPUShader* vertexShader = createShader(SHADERS__DEBUG_LINE_VERT, SDL_GPU_SHADERSTAGE_VERTEX);
-    SDL_GPUShader* fragmentShader = createShader(SHADERS__DEBUG_LINE_FRAG, SDL_GPU_SHADERSTAGE_FRAGMENT);
+    SDL_GPUShader* vertexShader = createShader(
+        SHADERS__DEBUG_LINE_VERT, SDL_GPU_SHADERSTAGE_VERTEX,
+        0, 0, 0, 1);
+    SDL_GPUShader* fragmentShader = createShader(
+        SHADERS__DEBUG_LINE_FRAG, SDL_GPU_SHADERSTAGE_FRAGMENT,
+        0, 0, 0, 0);
     if (!vertexShader || !fragmentShader) {
-        Logger_fatal("Failed to create one or more shaders: SDL error: %s", SDL_GetError());
+        Logger_fatal("Failed to create debug line renderer shaders: SDL error: %s", SDL_GetError());
         exit(EXIT_FAILURE);
     }
 
@@ -206,7 +307,7 @@ void createDebugLinesRenderer() {
         .target_info = {
             .num_color_targets = 1,
             .color_target_descriptions = (SDL_GPUColorTargetDescription[]) {{
-                .format = renderState.renderTargetFormat,
+                .format = SDL_GetGPUSwapchainTextureFormat(renderState.gpuDevice, renderState.windowHandle),
             }},
         },
         .vertex_input_state = {
@@ -239,7 +340,7 @@ void createDebugLinesRenderer() {
     };
     renderState.debugLineRenderer.pipeline = SDL_CreateGPUGraphicsPipeline(renderState.gpuDevice, &pipelineCreateInfo);
     if (!renderState.debugLineRenderer.pipeline) {
-        Logger_fatal("Failed to create debug line pipeline: SDL error: %s", SDL_GetError());
+        Logger_fatal("Failed to create debug line renderer pipeline: SDL error: %s", SDL_GetError());
         exit(EXIT_FAILURE);
     }
 
@@ -255,7 +356,7 @@ void createDebugLinesRenderer() {
             .size = sizeof(DebugLineVertex) * MAX_DEBUG_LINE_COUNT * 2
         });
     if (!renderState.debugLineRenderer.transferBuffer) {
-        Logger_fatal("Failed to create debug line transfer buffer: SDL error: %s", SDL_GetError());
+        Logger_fatal("Failed to create debug line renderer transfer buffer: SDL error: %s", SDL_GetError());
         exit(EXIT_FAILURE);
     }
 
@@ -267,7 +368,7 @@ void createDebugLinesRenderer() {
             .size = sizeof(DebugLineVertex) * MAX_DEBUG_LINE_COUNT * 2
         });
     if (!renderState.debugLineRenderer.gpuBuffer) {
-        Logger_fatal("Failed to create debug line GPU buffer: SDL error: %s", SDL_GetError());
+        Logger_fatal("Failed to create debug line renderer GPU buffer: SDL error: %s", SDL_GetError());
         exit(EXIT_FAILURE);
     }
 }

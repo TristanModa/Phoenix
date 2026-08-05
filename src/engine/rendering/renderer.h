@@ -4,11 +4,10 @@
 #include <SDL3/SDL.h>
 
 #include "colors.h"
-#include "engine/core/types.h"
 
-constexpr u32 TARGET_TEXTURE_DISPLAY_WIDTH = 640;
-constexpr u32 TARGET_TEXTURE_DISPLAY_HEIGHT = 360;
-constexpr u32 TARGET_TEXTURE_PADDING = 2;
+constexpr size_t VIRTUAL_DISPLAY_WIDTH = 320;
+constexpr size_t VIRTUAL_DISPLAY_HEIGHT = 180;
+constexpr float VIRTUAL_DISPLAY_ASPECT_RATIO = (float)VIRTUAL_DISPLAY_WIDTH / (float)VIRTUAL_DISPLAY_HEIGHT;
 
 constexpr size_t MAX_DEBUG_LINE_COUNT = 2048;
 static_assert(MAX_DEBUG_LINE_COUNT % 2 == 0);
@@ -33,6 +32,13 @@ void Renderer_render();
  * @return The GPU device
  */
 SDL_GPUDevice* Renderer_getGPUDevice();
+
+/**
+ * Sets the position of the renderer's camera
+ * @param x The X position of the camera
+ * @param y The Y position of the camera
+ */
+void Renderer_setCameraPosition(float x, float y);
 
 /**
  * Adds a debug line to the debug lines list and draws it this frame
