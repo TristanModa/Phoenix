@@ -150,8 +150,8 @@ void Renderer_render() {
             renderState.cameraPosition.x,
             renderState.cameraPosition.y
         };
-        //SDL_PushGPUVertexUniformData(commandBuffer, 0, &uniformData, sizeof(uniformData));
-        //renderDebugLines(virtualDisplayRenderPass);
+        SDL_PushGPUVertexUniformData(commandBuffer, 0, &uniformData, sizeof(uniformData));
+        renderDebugLines(virtualDisplayRenderPass);
 
         // End the virtual display render pass
         SDL_EndGPURenderPass(virtualDisplayRenderPass);
@@ -292,7 +292,7 @@ void renderDisplay(SDL_GPUCommandBuffer* commandBuffer, SDL_GPURenderPass* rende
         float cameraSubpixel[2];
     } uniformData = {
         .displaySize = { VIRTUAL_DISPLAY_WIDTH, VIRTUAL_DISPLAY_HEIGHT },
-        .cameraSubpixel = { renderState.cameraPosition.subpixelX, renderState.cameraPosition.subpixelY }
+        .cameraSubpixel = { renderState.cameraPosition.subpixelX, -renderState.cameraPosition.subpixelY }
     };
     SDL_GetWindowSizeInPixels(renderState.windowHandle, &uniformData.windowSize[0], &uniformData.windowSize[1]);
 

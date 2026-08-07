@@ -29,9 +29,5 @@ void Phoenix_tick() {
 }
 
 void Phoenix_render() {
-	for (int y = 0; y < VIRTUAL_DISPLAY_HEIGHT; y += 4) {
-		for (int x = 0; x < VIRTUAL_DISPLAY_WIDTH; x += 4) {
-			Renderer_drawDebugLine(x, y, x + 1, y + 1, COLOR_BLUE);
-		}
-	}
+	Renderer_drawDebugLine(0, 0, 1, 1, COLOR_BLUE);
 }

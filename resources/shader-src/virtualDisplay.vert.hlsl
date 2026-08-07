@@ -7,16 +7,16 @@ struct VSOutput {
 };
 
 const static float2 vertexPos[4] = {
-	float2(-1.0f,  1.0f),
-	float2( 1.0f,  1.0f),
-	float2(-1.0f, -1.0f),
-	float2( 1.0f, -1.0f),
+	float2(-1,  1),
+	float2( 1,  1),
+	float2(-1, -1),
+	float2( 1, -1),
 };
 const static float2 vertexUV[4] = {
-    float2(0.0f, 0.0f),
-    float2(1.0f, 0.0f),
-    float2(0.0f, 1.0f),
-    float2(1.0f, 1.0f),
+    float2(0, 0),
+    float2(1, 0),
+    float2(0, 1),
+    float2(1, 1),
 };
 
 [shader("vertex")]
