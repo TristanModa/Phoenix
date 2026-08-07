@@ -5,11 +5,12 @@
 
 #include "colors.h"
 
-constexpr size_t VIRTUAL_DISPLAY_WIDTH = 320;
-constexpr size_t VIRTUAL_DISPLAY_HEIGHT = 180;
+constexpr size_t VIRTUAL_DISPLAY_WIDTH = 16;
+constexpr size_t VIRTUAL_DISPLAY_HEIGHT = 9;
+constexpr size_t VIRTUAL_DISPLAY_TEXTURE_PADDING = 1;
 constexpr float VIRTUAL_DISPLAY_ASPECT_RATIO = (float)VIRTUAL_DISPLAY_WIDTH / (float)VIRTUAL_DISPLAY_HEIGHT;
 
-constexpr size_t MAX_DEBUG_LINE_COUNT = 2048;
+constexpr size_t MAX_DEBUG_LINE_COUNT = 2048 * 2;
 static_assert(MAX_DEBUG_LINE_COUNT % 2 == 0);
 
 /**
@@ -43,6 +44,6 @@ void Renderer_setCameraPosition(float x, float y);
 /**
  * Adds a debug line to the debug lines list and draws it this frame
  */
-void Renderer_drawDebugLine(float x1, float y1, float x2, float y2, Color color);
+void Renderer_drawDebugLine(int x1, int y1, int x2, int y2, Color color);
 
 #endif //ENGINE_RENDERING_RENDERER_H

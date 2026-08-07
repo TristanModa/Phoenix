@@ -6,16 +6,17 @@
 #include <stdlib.h>
 
 #include "colors.h"
+#include "engine/core/input.h"
 #include "engine/core/logger.h"
 #include "engine/core/resources.h"
 
 typedef struct debugLine {
-    float x1, y1, x2, y2;
+    int x1, y1, x2, y2;
     Color color;
 } DebugLine;
 
 typedef struct debugLineVertex {
-    float x, y;
+    int x, y;
     float r, g, b, a;
 } DebugLineVertex;
 
@@ -23,15 +24,18 @@ static struct {
     SDL_GPUDevice* gpuDevice;
     SDL_Window* windowHandle;
 
-    SDL_GPUTextureFormat virtualDisplayTargetFormat;
-    SDL_GPUTexture* virtualDisplayTarget;
+    struct {
+        int x;
+        int y;
+        float subpixelX;
+        float subpixelY;
+    } cameraPosition;
 
     struct {
-        float x;
-        float xFractional;
-        float y;
-        float yFractional;
-    } cameraPosition;
+        SDL_GPUGraphicsPipeline* pipeline;
+        SDL_GPUTextureFormat format;
+        SDL_GPUTexture* target;
+    } displayRenderer;
 
     struct {
         size_t lineCount;
@@ -46,12 +50,14 @@ static struct {
 static SDL_GPUShader* createShader(ResourceID resourceID, SDL_GPUShaderStage stage, int numSamplers,
     int numStorageTextures, int numStorageBuffers, int numUniformBuffers);
 
-static void blitVirtualDisplayToSwapchain(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* swapchainTexture);
+static void createDisplayRenderer();
+static void destroyDisplayRenderer();
+static void renderDisplay(SDL_GPUCommandBuffer* commandBuffer, SDL_GPURenderPass* renderPass);
 
 static void createDebugLinesRenderer();
 static void destroyDebugLinesRenderer();
 static void uploadDebugLineData(SDL_GPUCommandBuffer* commandBuffer);
-static void renderDebugLines(SDL_GPURenderPass *renderPass);
+static void renderDebugLines(SDL_GPURenderPass* renderPass);
 
 static void uploadImGuiRenderData(SDL_GPUCommandBuffer* commandBuffer);
 static void renderImGui(SDL_GPUCommandBuffer* commandBuffer, SDL_GPURenderPass* renderPass);
@@ -83,25 +89,8 @@ void Renderer_create(SDL_Window* windowHandle) {
         exit(EXIT_FAILURE);
     }
 
-    // Create the virtual display target
-    renderState.virtualDisplayTargetFormat = SDL_GetGPUSwapchainTextureFormat(
-        renderState.gpuDevice, renderState.windowHandle);
-    SDL_GPUTextureCreateInfo textureCreateInfo = {
-        .type = SDL_GPU_TEXTURETYPE_2D,
-        .format = renderState.virtualDisplayTargetFormat,
-        .width = VIRTUAL_DISPLAY_WIDTH + 1,
-        .height = VIRTUAL_DISPLAY_HEIGHT + 1,
-        .layer_count_or_depth = 1,
-        .num_levels = 1,
-        .usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER
-    };
-    renderState.virtualDisplayTarget = SDL_CreateGPUTexture(renderState.gpuDevice, &textureCreateInfo);
-    if (!renderState.virtualDisplayTarget) {
-        Logger_fatal("Failed to create virtual display target: SDL error: %s", SDL_GetError());
-        exit(EXIT_FAILURE);
-    }
-
     // Create renderers
+    createDisplayRenderer();
     createDebugLinesRenderer();
 
     Logger_popIndent();
@@ -113,9 +102,9 @@ void Renderer_destroy() {
 
     // Destroy renderers
     destroyDebugLinesRenderer();
+    destroyDisplayRenderer();
 
     // Release GPU resources
-    SDL_ReleaseGPUTexture(renderState.gpuDevice, renderState.virtualDisplayTarget);
     SDL_ReleaseWindowFromGPUDevice(renderState.gpuDevice, renderState.windowHandle);
 
     // Destroy GPU device
@@ -148,28 +137,24 @@ void Renderer_render() {
         SDL_GPURenderPass* virtualDisplayRenderPass = SDL_BeginGPURenderPass(
             commandBuffer,
             &(SDL_GPUColorTargetInfo){
-                .texture = renderState.virtualDisplayTarget,
+                .texture = renderState.displayRenderer.target,
                 .load_op = SDL_GPU_LOADOP_CLEAR,
                 .store_op = SDL_GPU_STOREOP_STORE
             },
             1, nullptr);
 
         // Push the transformation matrix
-        float matrix[16] = {};
-        matrix[0]  = 2.0f / (float)VIRTUAL_DISPLAY_WIDTH;
-        matrix[5]  = 2.0f / (float)VIRTUAL_DISPLAY_HEIGHT;
-        matrix[10] = 1.0f;
-        matrix[12] = -(2.0f * renderState.cameraPosition.x / (float)VIRTUAL_DISPLAY_WIDTH) - 1.0f;
-        matrix[13] = -(2.0f * renderState.cameraPosition.y / (float)VIRTUAL_DISPLAY_HEIGHT) - 1.0f;
-        matrix[15] = 1.0f;
-        SDL_PushGPUVertexUniformData(commandBuffer, 0, &matrix, sizeof(matrix));
-        renderDebugLines(virtualDisplayRenderPass);
+        int uniformData[4] = {
+            VIRTUAL_DISPLAY_WIDTH + VIRTUAL_DISPLAY_TEXTURE_PADDING,
+            VIRTUAL_DISPLAY_HEIGHT + VIRTUAL_DISPLAY_TEXTURE_PADDING,
+            renderState.cameraPosition.x,
+            renderState.cameraPosition.y
+        };
+        //SDL_PushGPUVertexUniformData(commandBuffer, 0, &uniformData, sizeof(uniformData));
+        //renderDebugLines(virtualDisplayRenderPass);
 
         // End the virtual display render pass
         SDL_EndGPURenderPass(virtualDisplayRenderPass);
-
-        // Blit the virtual display to the swapchain texture
-        blitVirtualDisplayToSwapchain(commandBuffer, swapchainTexture);
 
         // Perform the swapchain render pass
         SDL_GPURenderPass* swapchainRenderPass = SDL_BeginGPURenderPass(
@@ -180,6 +165,7 @@ void Renderer_render() {
                 .store_op = SDL_GPU_STOREOP_STORE
             },
             1, nullptr);
+        renderDisplay(commandBuffer, swapchainRenderPass);
         renderImGui(commandBuffer, swapchainRenderPass);
         SDL_EndGPURenderPass(swapchainRenderPass);
     }
@@ -193,16 +179,13 @@ SDL_GPUDevice* Renderer_getGPUDevice() {
 }
 
 void Renderer_setCameraPosition(float x, float y) {
-    float flooredX = floorf(x);
-    float flooredY = floorf(y);
-
-    renderState.cameraPosition.x = flooredX;
-    renderState.cameraPosition.xFractional = x - flooredX;
-    renderState.cameraPosition.y = flooredY;
-    renderState.cameraPosition.yFractional = y - flooredY;
+    renderState.cameraPosition.x = (int)floorf(x);
+    renderState.cameraPosition.subpixelX = x - (float)renderState.cameraPosition.x;
+    renderState.cameraPosition.y = (int)floorf(y);
+    renderState.cameraPosition.subpixelY = y - (float)renderState.cameraPosition.y;
 }
 
-void Renderer_drawDebugLine(float x1, float y1, float x2, float y2, Color color) {
+void Renderer_drawDebugLine(int x1, int y1, int x2, int y2, Color color) {
     // Return if the lines array is full
     if (renderState.debugLineRenderer.lineCount >= MAX_DEBUG_LINE_COUNT) {
         Logger_warning("Could not draw debug line: Maximum debug line count of %zu reached", MAX_DEBUG_LINE_COUNT);
@@ -238,55 +221,87 @@ SDL_GPUShader* createShader(ResourceID resourceID, SDL_GPUShaderStage stage, int
     return SDL_CreateGPUShader(renderState.gpuDevice, &createInfo);
 }
 
-void blitVirtualDisplayToSwapchain(SDL_GPUCommandBuffer* commandBuffer, SDL_GPUTexture* swapchainTexture) {
-    // Get the window size and aspect ratio
-    int windowWidth, windowHeight;
-    SDL_GetWindowSize(renderState.windowHandle, &windowWidth, &windowHeight);
-    const float windowAspectRatio = (float)windowWidth / (float)windowHeight;
-
-    // Calculate the scaling factor
-    float scale;
-    if (windowAspectRatio < VIRTUAL_DISPLAY_ASPECT_RATIO) {
-        scale = (float)windowWidth / VIRTUAL_DISPLAY_WIDTH;
-    } else {
-        scale = (float)windowHeight / VIRTUAL_DISPLAY_HEIGHT;
+void createDisplayRenderer() {
+    // Create shaders
+    SDL_GPUShader* vertexShader = createShader(
+        SHADERS__VIRTUAL_DISPLAY_VERT, SDL_GPU_SHADERSTAGE_VERTEX,
+        0, 0, 0, 0);
+    SDL_GPUShader* fragmentShader = createShader(
+        SHADERS__VIRTUAL_DISPLAY_FRAG, SDL_GPU_SHADERSTAGE_FRAGMENT,
+        0, 1, 0, 1);
+    if (!vertexShader || !fragmentShader) {
+        Logger_fatal("Failed to create debug line renderer shaders: SDL error: %s", SDL_GetError());
+        exit(EXIT_FAILURE);
     }
 
-    // Get the destination position offset
-    SDL_Point offset = {
-        .x = (int)(renderState.cameraPosition.xFractional * scale),
-        .y = (int)(renderState.cameraPosition.yFractional * scale)
-    };
-
-    // Calculate the destination rect
-    SDL_Rect dst;
-    dst.w = (int)((VIRTUAL_DISPLAY_WIDTH + 1) * scale);
-    dst.h = (int)((VIRTUAL_DISPLAY_HEIGHT + 1) * scale);
-    dst.x = -offset.x;
-    dst.y = offset.y;
-
-    // Clamp the destination rect so it is in bounds
-
-
-    // Blit the virtual display to the swapchain
-    SDL_GPUBlitInfo blitInfo = {
-        .source = {
-            .texture = renderState.virtualDisplayTarget,
-            .w = VIRTUAL_DISPLAY_WIDTH,
-            .h = VIRTUAL_DISPLAY_HEIGHT,
+    // Create the display pipeline
+    SDL_GPUGraphicsPipelineCreateInfo pipelineCreateInfo = {
+        .target_info = {
+            .num_color_targets = 1,
+            .color_target_descriptions = (SDL_GPUColorTargetDescription[]) {{
+                .format = SDL_GetGPUSwapchainTextureFormat(renderState.gpuDevice, renderState.windowHandle),
+            }},
         },
-        .destination = {
-            .texture = swapchainTexture,
-            .x = dst.x,
-            .y = dst.y,
-            .w = dst.w,
-            .h = dst.h,
-        },
-        .filter = SDL_GPU_FILTER_NEAREST,
-        .clear_color = COLOR_RED_DARK,
-        .load_op = SDL_GPU_LOADOP_CLEAR
+        .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLESTRIP,
+        .vertex_shader = vertexShader,
+        .fragment_shader = fragmentShader,
     };
-    SDL_BlitGPUTexture(commandBuffer, &blitInfo);
+    renderState.displayRenderer.pipeline = SDL_CreateGPUGraphicsPipeline(renderState.gpuDevice, &pipelineCreateInfo);
+    if (!renderState.displayRenderer.pipeline) {
+        Logger_fatal("Failed to create display pipeline: SDL error: %s", SDL_GetError());
+        exit(EXIT_FAILURE);
+    }
+
+    // Release shaders
+    SDL_ReleaseGPUShader(renderState.gpuDevice, vertexShader);
+    SDL_ReleaseGPUShader(renderState.gpuDevice, fragmentShader);
+
+    // Create the display target texture
+    renderState.displayRenderer.format = SDL_GetGPUSwapchainTextureFormat(
+        renderState.gpuDevice,
+        renderState.windowHandle);
+    SDL_GPUTextureCreateInfo textureCreateInfo = {
+        .type = SDL_GPU_TEXTURETYPE_2D,
+        .format = renderState.displayRenderer.format,
+        .width = VIRTUAL_DISPLAY_WIDTH + VIRTUAL_DISPLAY_TEXTURE_PADDING,
+        .height = VIRTUAL_DISPLAY_HEIGHT + VIRTUAL_DISPLAY_TEXTURE_PADDING,
+        .layer_count_or_depth = 1,
+        .num_levels = 1,
+        .usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_GRAPHICS_STORAGE_READ
+    };
+    renderState.displayRenderer.target = SDL_CreateGPUTexture(renderState.gpuDevice, &textureCreateInfo);
+    if (!renderState.displayRenderer.target) {
+        Logger_fatal("Failed to create display target: SDL error: %s", SDL_GetError());
+        exit(EXIT_FAILURE);
+    }
+}
+
+void destroyDisplayRenderer() {
+    SDL_ReleaseGPUTexture(renderState.gpuDevice, renderState.displayRenderer.target);
+    SDL_ReleaseGPUGraphicsPipeline(renderState.gpuDevice, renderState.displayRenderer.pipeline);
+}
+
+void renderDisplay(SDL_GPUCommandBuffer* commandBuffer, SDL_GPURenderPass* renderPass) {
+    // Bind the pipeline
+    SDL_BindGPUGraphicsPipeline(renderPass, renderState.displayRenderer.pipeline);
+
+    // Create the uniform data to push to the fragment shader
+    struct {
+        int displaySize[2];
+        int windowSize[2];
+        float cameraSubpixel[2];
+    } uniformData = {
+        .displaySize = { VIRTUAL_DISPLAY_WIDTH, VIRTUAL_DISPLAY_HEIGHT },
+        .cameraSubpixel = { renderState.cameraPosition.subpixelX, renderState.cameraPosition.subpixelY }
+    };
+    SDL_GetWindowSizeInPixels(renderState.windowHandle, &uniformData.windowSize[0], &uniformData.windowSize[1]);
+
+    // Push/bind resources
+    SDL_PushGPUFragmentUniformData(commandBuffer, 0, &uniformData, sizeof(uniformData));
+    SDL_BindGPUFragmentStorageTextures(renderPass, 0, &renderState.displayRenderer.target, 1);
+
+    // Draw the render display
+    SDL_DrawGPUPrimitives(renderPass, 4, 1, 0, 0);
 }
 
 void createDebugLinesRenderer() {
@@ -323,7 +338,7 @@ void createDebugLinesRenderer() {
                 {
                     .location = 0,
                     .buffer_slot = 0,
-                    .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
+                    .format = SDL_GPU_VERTEXELEMENTFORMAT_INT2,
                     .offset = offsetof(DebugLineVertex, x),
                 },
                 {
@@ -380,6 +395,11 @@ void destroyDebugLinesRenderer() {
 }
 
 void uploadDebugLineData(SDL_GPUCommandBuffer* commandBuffer) {
+    // Return if there are no lines to upload
+    if (renderState.debugLineRenderer.lineCount == 0) {
+        return;
+    }
+
     // Upload the debug line data to the transfer buffer
     DebugLineVertex* dataPtr = SDL_MapGPUTransferBuffer(
         renderState.gpuDevice,
@@ -424,6 +444,11 @@ void uploadDebugLineData(SDL_GPUCommandBuffer* commandBuffer) {
 }
 
 void renderDebugLines(SDL_GPURenderPass* renderPass) {
+    // Return if there are no lines to render
+    if (renderState.debugLineRenderer.lineCount == 0) {
+        return;
+    }
+
     // Draw lines
     SDL_BindGPUGraphicsPipeline(renderPass, renderState.debugLineRenderer.pipeline);
     const SDL_GPUBufferBinding binding = {

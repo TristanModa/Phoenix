@@ -99,6 +99,9 @@ void create() {
 
     // Show the window
     Window_show();
+
+    // Log completed initialization
+    Logger_info("Application initialized");
 }
 
 void destroy() {

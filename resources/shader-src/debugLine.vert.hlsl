@@ -1,6 +1,9 @@
+// #pragma hlsl profile vs_6_6
+// #pragma hlsl entry main
+
 struct VSInput {
-    float2 position : POSITION;
-	float4 color    : COLOR0;
+    int2 position : POSITION;
+	float4 color  : COLOR0;
 };
 
 struct VSOutput {
@@ -8,17 +11,20 @@ struct VSOutput {
     float4 color    : TEXCOORD0;
 };
 
-cbuffer UniformBlock : register(b0, space1) {
-    float4x4 matrixTransform : packoffset(c0);
+cbuffer UniformData : register(b0, space1) {
+    int2 displaySize;
+    int2 cameraPos;
 }
 
 [shader("vertex")]
 VSOutput main(VSInput input, uint vertexID : SV_VertexID) {
     VSOutput output;
 
-    float z = vertexID / 1e-6f;
-    output.position = mul(matrixTransform, float4(input.position, z, 1.0f));
-    output.color = input.color;
+    int2 pixelPos = input.position - cameraPos;
+    float2 normalizedPos = float2(pixelPos) / float2(displaySize);
+    output.position.xy = (normalizedPos * 2) - 1;
+    output.position.zw = float2(vertexID / 1e-6f, 1.0f);
 
+    output.color = input.color;
     return output;
 }

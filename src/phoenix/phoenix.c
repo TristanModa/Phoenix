@@ -15,11 +15,11 @@ void Phoenix_update() {
 	static float x = 0;
 	static float y = 0;
 
-	x += (float)Input_getButtonState(BUTTON_RIGHT)->held * Time_getDeltaTime();
-	x -= (float)Input_getButtonState(BUTTON_LEFT)->held * Time_getDeltaTime();
+	x += (float)Input_getButtonState(BUTTON_RIGHT)->held * 2.0f * Time_getDeltaTime();
+	x -= (float)Input_getButtonState(BUTTON_LEFT)->held * 2.0f * Time_getDeltaTime();
 
-	y += (float)Input_getButtonState(BUTTON_UP)->held * Time_getDeltaTime();
-	y -= (float)Input_getButtonState(BUTTON_DOWN)->held * Time_getDeltaTime();
+	y -= (float)Input_getButtonState(BUTTON_UP)->held * 2.0f * Time_getDeltaTime();
+	y += (float)Input_getButtonState(BUTTON_DOWN)->held * 2.0f * Time_getDeltaTime();
 
 	Renderer_setCameraPosition(x, y);
 }
@@ -29,5 +29,9 @@ void Phoenix_tick() {
 }
 
 void Phoenix_render() {
-	Renderer_drawDebugLine(0, 0, VIRTUAL_DISPLAY_WIDTH, VIRTUAL_DISPLAY_HEIGHT, COLOR_BLUE);
+	for (int y = 0; y < VIRTUAL_DISPLAY_HEIGHT; y += 4) {
+		for (int x = 0; x < VIRTUAL_DISPLAY_WIDTH; x += 4) {
+			Renderer_drawDebugLine(x, y, x + 1, y + 1, COLOR_BLUE);
+		}
+	}
 }
